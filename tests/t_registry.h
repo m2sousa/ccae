@@ -7,7 +7,8 @@
 	X(error)                                                                   \
 	X(arena)                                                                   \
 	X(vec)                                                                     \
-	X(strpool)
+	X(strpool)                                                                 \
+	X(context)
 
 // Holy f*ck, that's my first (useful) X-Macro !
 #define DECLARE_TEST(t_name) DECLARE_T(t_name);

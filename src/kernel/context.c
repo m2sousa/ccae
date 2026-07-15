@@ -1,13 +1,11 @@
 #include <stdlib.h>
 
 #include <ccae/core/arena.h>
+#include <ccae/core/error.h>
 #include <ccae/core/strpool.h>
+#include <ccae/core/vec.h>
+#include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
-
-struct Context {
-	Arena* perm;
-	StringPool* sp;
-};
 
 Context* ctx_create(void) {
 	Context* ctx = malloc(sizeof(*ctx));
@@ -27,8 +25,16 @@ Context* ctx_create(void) {
 		return NULL;
 	}
 
+	Bundles bundles = {0};
+	vec_init(bundles);
+
+	Bundle null_bundle = {0};
+	vec_append(arena, bundles, null_bundle); // slot 0 = null handle
+
 	ctx->perm = arena;
 	ctx->sp = sp;
+	ctx->bundles = bundles;
+	err_clear(&ctx->err);
 
 	return ctx;
 }
@@ -39,3 +45,7 @@ void ctx_destroy(Context* ctx) {
 
 	free(ctx);
 }
+
+bool ctx_ok(const Context* ctx) { return ctx->err.code == CCAE_OK; }
+
+void ctx_clear_err(Context* ctx) { err_clear(&ctx->err); }

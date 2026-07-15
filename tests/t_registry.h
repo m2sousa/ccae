@@ -6,7 +6,8 @@
 #define TESTS_LIST(X)                                                          \
 	X(error)                                                                   \
 	X(arena)                                                                   \
-	X(vec)
+	X(vec)                                                                     \
+	X(strpool)
 
 // Holy f*ck, that's my first (useful) X-Macro !
 #define DECLARE_TEST(t_name) DECLARE_T(t_name);

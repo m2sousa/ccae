@@ -13,11 +13,11 @@ typedef struct {
 	u64 hash;
 } StringEntry;
 
-typedef Vec(StringEntry) Strings;
+typedef Vec(StringEntry) StringEntryVec;
 
 struct StringPool {
 	Arena* arena;
-	Strings entries;
+	StringEntryVec entries;
 };
 
 static u64 FNV_1a(const char* s) {
@@ -40,7 +40,7 @@ StringPool* sp_create(Arena* a) {
 
 	sp->arena = a;
 
-	Strings entries = {0};
+	StringEntryVec entries = {0};
 	vec_init(entries);
 
 	StringEntry null = {.data = "", .length = 0, .hash = FNV_1a("")};
@@ -77,6 +77,13 @@ StringRef sp_intern(StringPool* sp, const char* s) {
 
 	StringRef sr = {.val = (u32)(sp->entries.length - 1)};
 	return sr;
+}
+
+const char* sp_get(const StringPool* sp, StringRef sr) {
+	if (sr.val >= sp->entries.length)
+		die("CCAE (sp_get): handle out of range.");
+
+	return vec_at(sp->entries, sr.val).data;
 }
 
 void sp_destroy(StringPool* sp) { free(sp); }

@@ -10,7 +10,7 @@
  * different types, so name it once with a `typedef`.
  *
  * Example:
- *		`typedef Vec(StringEntry) Strings;` */
+ *		`typedef Vec(StringEntry) StringEntryVec;` */
 #define Vec(T)                                                                 \
 	struct {                                                                   \
 		T* data;                                                               \

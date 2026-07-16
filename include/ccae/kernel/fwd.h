@@ -9,4 +9,8 @@ typedef struct {
 	u32 val;
 } BundleRef;
 
+typedef struct {
+	u32 val;
+} SymRef;
+
 #endif

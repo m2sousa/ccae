@@ -6,14 +6,14 @@
 #include <ccae/core/strpool.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/fwd.h>
+#include <ccae/kernel/symbol.h>
 
-// Public so that kernel files can fill their tables. Outside the kernel, use
-// the `ctx_*` functions only.
 struct Context {
 	Arena* perm;
 	StringPool* sp;
 	Error err;
-	Bundles bundles;
+	BundleVec bundles;
+	SymbolVec symbols;
 };
 
 /* Creates a `Context`, which owns the session's arena and string pool.

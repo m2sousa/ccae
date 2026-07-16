@@ -26,4 +26,10 @@ void sp_destroy(StringPool* sp);
  *		`StringRef name = sp_intern(sp, "spatial");` */
 [[nodiscard]] StringRef sp_intern(StringPool* sp, const char* s);
 
+/* Returns the string behind `sr`. Dies if `sr` does not belong to `sp`.
+ *
+ * Example:
+ *		`const char* name = sp_get(sp, bundle.name);` */
+const char* sp_get(const StringPool* sp, StringRef sr);
+
 #endif

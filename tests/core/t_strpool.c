@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 
 #include <ccae/core/arena.h>
 #include <ccae/core/strpool.h>
@@ -9,6 +10,7 @@ static size_t test_strpool_same(void);
 static size_t test_strpool_different(void);
 static size_t test_strpool_empty(void);
 static size_t test_strpool_repeat(void);
+static size_t test_strpool_get(void);
 
 size_t test_strpool(void) {
 	size_t fails = 0;
@@ -16,6 +18,7 @@ size_t test_strpool(void) {
 	fails += test_strpool_different();
 	fails += test_strpool_empty();
 	fails += test_strpool_repeat();
+	fails += test_strpool_get();
 
 	return fails;
 }
@@ -118,6 +121,30 @@ static size_t test_strpool_repeat(void) {
 
 	CHECK(wrong == 0);
 	CHECK(next.val == first.val + 1);
+
+	sp_destroy(sp);
+	arena_destroy(a);
+
+	return fails;
+}
+
+static size_t test_strpool_get(void) {
+	size_t fails = 0;
+
+	Arena* a = arena_create();
+	if (!a)
+		return 1;
+
+	StringPool* sp = sp_create(a);
+	if (!sp) {
+		arena_destroy(a);
+		return 1;
+	}
+
+	StringRef spatial = sp_intern(sp, "spatial");
+
+	CHECK(strcmp(sp_get(sp, spatial), "spatial") == 0);
+	CHECK(strcmp(sp_get(sp, (StringRef){.val = 0}), "") == 0);
 
 	sp_destroy(sp);
 	arena_destroy(a);

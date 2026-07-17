@@ -113,3 +113,13 @@ SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,
 	SymRef sr = {.val = (u32)(ctx->symbols.length - 1)};
 	return sr;
 }
+
+void symbol_set_latex(Context* ctx, SymRef sym, const char* latex) {
+	if (!ctx_ok(ctx))
+		return;
+
+	if (sym.val == 0 || sym.val >= ctx->symbols.length)
+		die("CCAE (symbol_set_latex): handle out of range.");
+
+	vec_at(ctx->symbols, sym.val).latex = sp_intern(ctx->sp, latex);
+}

@@ -1,6 +1,8 @@
 #include <stddef.h>
+#include <string.h>
 
 #include <ccae/core/error.h>
+#include <ccae/core/strpool.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/symbol.h>
@@ -12,6 +14,7 @@ static size_t test_symbol_declare(void);
 static size_t test_symbol_duplicate(void);
 static size_t test_symbol_bad_slotspec(void);
 static size_t test_symbol_bad_flags(void);
+static size_t test_symbol_latex(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -19,6 +22,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_duplicate();
 	fails += test_symbol_bad_slotspec();
 	fails += test_symbol_bad_flags();
+	fails += test_symbol_latex();
 
 	return fails;
 }
@@ -131,6 +135,28 @@ static size_t test_symbol_bad_flags(void) {
 
 	CHECK(!is_rejected(SYM_CONST, "", F_POSITIVE));
 	CHECK(!is_rejected(SYM_TESTFN, "", F_CONST_IN_SPACE));
+
+	return fails;
+}
+
+static size_t test_symbol_latex(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_with_bundles();
+	if (!ctx)
+		return 1;
+
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+
+	StringRef before = vec_at(ctx->symbols, dK.val).latex;
+	CHECK(strcmp(sp_get(ctx->sp, before), "") == 0);
+
+	symbol_set_latex(ctx, dK, "\\delta K");
+
+	StringRef after = vec_at(ctx->symbols, dK.val).latex;
+	CHECK(strcmp(sp_get(ctx->sp, after), "\\delta K") == 0);
+
+	ctx_destroy(ctx);
 
 	return fails;
 }

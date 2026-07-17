@@ -27,6 +27,7 @@ typedef enum : u8 {
 
 typedef struct {
 	StringRef name;
+	StringRef latex;
 	SymKind kind;
 	u16 flags;
 	u8 nslot;
@@ -52,5 +53,13 @@ typedef Vec(Symbol) SymbolVec;
 [[nodiscard]] SymRef symbol_declare_tensor(Context* ctx, const char* name,
 										   SymKind kind, const char* slotspec,
 										   u16 flags);
+
+/* Sets the LaTeX rendering of `sym` to `latex`, replacing any earlier one.
+ * Does nothing if `ctx` already holds an error. Dies if `sym` is the null
+ * handle or out of range.
+ *
+ * Example:
+ *		`symbol_set_latex(ctx, dK, "\\delta K");` */
+void symbol_set_latex(Context* ctx, SymRef sym, const char* latex);
 
 #endif

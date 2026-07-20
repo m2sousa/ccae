@@ -16,6 +16,7 @@ static size_t test_symbol_bad_slotspec(void);
 static size_t test_symbol_bad_flags(void);
 static size_t test_symbol_latex(void);
 static size_t test_symbol_homog(void);
+static size_t test_symbol_const(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -25,6 +26,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_bad_flags();
 	fails += test_symbol_latex();
 	fails += test_symbol_homog();
+	fails += test_symbol_const();
 
 	return fails;
 }
@@ -183,6 +185,27 @@ static size_t test_symbol_homog(void) {
 	ctx_clear_err(ctx);
 
 	CHECK(symbol_declare_tensor(ctx, "c", SYM_HOMOG, "", 0).val == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_symbol_const(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);
+	CHECK(kappa.val != 0);
+
+	Symbol kappa_sym = vec_at(ctx->symbols, kappa.val);
+	CHECK(kappa_sym.kind == SYM_CONST);
+	CHECK(kappa_sym.nslot == 0);
+	CHECK(kappa_sym.flags & F_CONST_IN_SPACE);
+	CHECK(kappa_sym.flags & F_POSITIVE);
 
 	ctx_destroy(ctx);
 

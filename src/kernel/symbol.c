@@ -134,6 +134,15 @@ SymRef symbol_declare_homog(Context* ctx, const char* name, u16 flags) {
 						  (u16)(flags | F_CONST_IN_SPACE));
 }
 
+SymRef symbol_declare_const(Context* ctx, const char* name, u16 flags) {
+	SymRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	return declare_symbol(ctx, name, SYM_CONST, "", flags);
+}
+
 void symbol_set_latex(Context* ctx, SymRef sym, const char* latex) {
 	if (!ctx_ok(ctx))
 		return;

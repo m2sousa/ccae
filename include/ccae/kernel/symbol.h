@@ -58,8 +58,8 @@ typedef Vec(Symbol) SymbolVec;
 										   SymKind kind, const char* slotspec,
 										   u16 flags);
 
-/* Declares a homogeneous symbol named `name`: a scalar constant in space, such
- * as a background variable of a cosmological model. `F_CONST_IN_SPACE` is
+/* Declares a homogeneous symbol named `name`: a scalar constant **in space**,
+ * such as a background variable of a cosmological model. `F_CONST_IN_SPACE` is
  * always added to `flags`.
  *
  * Sets `ctx->err` and returns the null handle on an empty or duplicate name, a
@@ -69,6 +69,16 @@ typedef Vec(Symbol) SymbolVec;
  * Example:
  *		`SymRef p = symbol_declare_homog(ctx, "p", F_PHASE_SPACE);` */
 [[nodiscard]] SymRef symbol_declare_homog(Context* ctx, const char* name,
+										  u16 flags);
+
+/* Declares a scalar constant named `name`, such as a coupling.
+ *
+ * Sets `ctx->err` and returns the null handle on an empty or duplicate name, a
+ * flag that does not fit a constant, or if `ctx` already holds an error.
+ *
+ * Example:
+ *		`SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);` */
+[[nodiscard]] SymRef symbol_declare_const(Context* ctx, const char* name,
 										  u16 flags);
 
 /* Sets the LaTeX rendering of `sym` to `latex`, replacing any earlier one.

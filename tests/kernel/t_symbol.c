@@ -15,6 +15,7 @@ static size_t test_symbol_duplicate(void);
 static size_t test_symbol_bad_slotspec(void);
 static size_t test_symbol_bad_flags(void);
 static size_t test_symbol_latex(void);
+static size_t test_symbol_homog(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -23,6 +24,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_bad_slotspec();
 	fails += test_symbol_bad_flags();
 	fails += test_symbol_latex();
+	fails += test_symbol_homog();
 
 	return fails;
 }
@@ -155,6 +157,32 @@ static size_t test_symbol_latex(void) {
 
 	StringRef after = vec_at(ctx->symbols, dK.val).latex;
 	CHECK(strcmp(sp_get(ctx->sp, after), "\\delta K") == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_symbol_homog(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef p = symbol_declare_homog(ctx, "p", F_PHASE_SPACE | F_POSITIVE);
+	CHECK(p.val != 0);
+
+	Symbol p_sym = vec_at(ctx->symbols, p.val);
+	CHECK(p_sym.kind == SYM_HOMOG);
+	CHECK(p_sym.nslot == 0);
+	CHECK(p_sym.flags & F_CONST_IN_SPACE);
+	CHECK(p_sym.flags & F_PHASE_SPACE);
+
+	CHECK(symbol_declare_homog(ctx, "c", F_ZERO_MODE_FREE).val == 0);
+	ctx_clear_err(ctx);
+
+	CHECK(symbol_declare_tensor(ctx, "c", SYM_HOMOG, "", 0).val == 0);
 
 	ctx_destroy(ctx);
 

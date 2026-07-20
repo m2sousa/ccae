@@ -56,9 +56,11 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 	if ((flags & F_POSITIVE) && sym->nslot > 0)
 		return reject_flag(ctx, name, "F_POSITIVE on an indexed symbol");
 
-	if ((flags & F_PHASE_SPACE) && sym->kind != SYM_FIELD)
+	if ((flags & F_PHASE_SPACE) && sym->kind != SYM_FIELD &&
+		sym->kind != SYM_HOMOG)
 		return reject_flag(ctx, name,
-						   "F_PHASE_SPACE on a symbol that is not a field");
+						   "F_PHASE_SPACE on a symbol that is neither a field "
+						   "nor homogeneous");
 
 	if ((flags & F_CONST_IN_SPACE) && sym->kind == SYM_FIELD)
 		return reject_flag(ctx, name, "F_CONST_IN_SPACE on a field");
@@ -70,21 +72,12 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 	return true;
 }
 
-SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,
+static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 							 const char* slotspec, u16 flags) {
 	SymRef null_ref = {.val = 0};
 
-	if (!ctx_ok(ctx))
-		return null_ref;
-
 	if (!*name) {
 		err_set(&ctx->err, CCAE_INVALID_ARG, "symbol name is empty.");
-		return null_ref;
-	}
-
-	if (kind != SYM_FIELD && kind != SYM_TESTFN && kind != SYM_CONST) {
-		err_set(&ctx->err, CCAE_INVALID_ARG, "symbol '%s': unknown kind.",
-				name);
 		return null_ref;
 	}
 
@@ -112,6 +105,33 @@ SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,
 
 	SymRef sr = {.val = (u32)(ctx->symbols.length - 1)};
 	return sr;
+}
+
+SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,
+							 const char* slotspec, u16 flags) {
+	SymRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (kind != SYM_FIELD && kind != SYM_TESTFN && kind != SYM_CONST) {
+		err_set(&ctx->err, CCAE_INVALID_ARG,
+				"symbol '%s': kind not accepted by symbol_declare_tensor.",
+				name);
+		return null_ref;
+	}
+
+	return declare_symbol(ctx, name, kind, slotspec, flags);
+}
+
+SymRef symbol_declare_homog(Context* ctx, const char* name, u16 flags) {
+	SymRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	return declare_symbol(ctx, name, SYM_HOMOG, "",
+						  (u16)(flags | F_CONST_IN_SPACE));
 }
 
 void symbol_set_latex(Context* ctx, SymRef sym, const char* latex) {

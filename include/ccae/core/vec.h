@@ -6,7 +6,7 @@
 
 #include <ccae/core/arena.h>
 
-/* A growable array of `T`, stored in an arena. Two expansions of `Vec(T)` are
+/* A growable array of `T` in an arena. Two expansions of `Vec(T)` are
  * different types, so name it once with a `typedef`.
  *
  * Example:
@@ -18,7 +18,7 @@
 		size_t capacity;                                                       \
 	}
 
-/* Make `v` empty, with no buffer.
+/* Empties `v`, with no buffer.
  *
  * Example:
  *		`vec_init(entries);` */
@@ -29,8 +29,8 @@
 		(v).capacity = 0u;                                                     \
 	} while (0)
 
-/* Append `x` to `v`, growing it in `a` when full. The old buffer is left in the
- * arena as garbage, so pointers into it stay valid but go stale.
+/* Appends `x` to `v`, growing it in `a` when full. Pointers into the old
+ * buffer go stale.
  *
  * Example:
  *		`vec_append(arena, entries, entry);` */
@@ -43,22 +43,21 @@
 		(v).data[(v).length++] = (x);                                          \
 	} while (0)
 
-/* The element of `v` at index `i`. No bounds check.
+/* Element `i` of `v`, without bounds check.
  *
  * Example:
  *		`StringEntry e = vec_at(entries, i);` */
 #define vec_at(v, i) ((v).data[i])
 
-/* Remove the last element of `v` and return it. `v` must not be empty.
+/* Removes and returns the last element of `v`, which must not be empty.
  *
  * Example:
  *		`StringEntry last = vec_pop(entries);` */
 #define vec_pop(v) (assert((v).length > 0), (v).data[--(v).length])
 
-/* Allocate a buffer twice as large as `*capacity` (or `CCAE_VEC_BASE_CAP`
- * elements when it is 0) in `a`, copy the `length` first elements of `data`
- * into it, update `*capacity` and return it. Dies on overflow or when the
- * arena is out of memory. Called by `vec_append`, not directly. */
+/* Behind `vec_append`, not called directly: returns a copy of `data` with
+ * twice the capacity (`CCAE_VEC_BASE_CAP` at first) and updates `*capacity`.
+ * Dies on overflow or out of memory. */
 [[nodiscard]] void* vec_grow_(Arena* a, const void* data, size_t length,
 							  size_t* capacity, size_t elem_size,
 							  size_t elem_align);

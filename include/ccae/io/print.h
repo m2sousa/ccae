@@ -5,15 +5,9 @@
 
 #include <ccae/kernel/fwd.h>
 
-/* Writes `sym` in ASCII into `buf`, which holds `size` bytes: its name and
- * slots, its kind, then its flags joined by `|`. The output is truncated to fit
- * and always ends with '\0' (unless `size` is 0).
- *
- * A symbol stores the bundle of each slot, not the index name it was declared
- * with, so the k-th slot in a bundle is printed with that bundle's k-th index
- * name.
- *
- * Dies if `sym` is the null handle or out of range.
+/* Writes `sym` into `buf` (`size` bytes, truncated, '\0'-terminated): name
+ * and slots, kind, flags. The k-th slot of a bundle gets its k-th index name.
+ * Dies on a bad handle.
  *
  * Example:
  *		`print_symbol(ctx, dK, buf, sizeof(buf));` gives

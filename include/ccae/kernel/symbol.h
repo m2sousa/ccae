@@ -38,19 +38,11 @@ typedef struct {
 
 typedef Vec(Symbol) SymbolVec;
 
-/* Declares a symbol named `name`, of kind `kind` and with `flags` (a set of
- * `SymFlag`s).
- *
- * `slotspec` lists its slots, one `^` (up) or `_` (down) followed by a bundle
- * index name each: "^i_a" is slot 0 internal up, slot 1 spatial down. ""
- * declares a scalar.
- *
- * `kind` is `SYM_FIELD`, `SYM_TESTFN` or `SYM_CONST`; homogeneous symbols go
- * through `symbol_declare_homog`.
- *
- * Sets `ctx->err` and returns the null handle on another kind, a malformed
- * `slotspec`, a flag that does not fit the kind or the slots, a duplicate name,
- * or if `ctx` already holds an error.
+/* Declares a `SYM_FIELD`, `SYM_TESTFN` or `SYM_CONST` symbol. `slotspec` has
+ * a `^` (up) or `_` (down) and an index name per slot: "^i_a" is internal up,
+ * spatial down; "" is a scalar. Sets `ctx->err` and returns the null handle on
+ * another kind, a bad `slotspec` or flag, a duplicate name, or an earlier
+ * error.
  *
  * Example:
  *		`SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);` */
@@ -58,32 +50,23 @@ typedef Vec(Symbol) SymbolVec;
 										   SymKind kind, const char* slotspec,
 										   u16 flags);
 
-/* Declares a homogeneous symbol named `name`: a scalar constant **in space**,
- * such as a background variable of a cosmological model. `F_CONST_IN_SPACE` is
- * always added to `flags`.
- *
- * Sets `ctx->err` and returns the null handle on an empty or duplicate name, a
- * flag that does not fit a homogeneous symbol, or if `ctx` already holds an
- * error.
+/* Declares a homogeneous scalar, constant **in space**: `F_CONST_IN_SPACE`
+ * is added to `flags`. Fails like `symbol_declare_tensor`.
  *
  * Example:
  *		`SymRef p = symbol_declare_homog(ctx, "p", F_PHASE_SPACE);` */
 [[nodiscard]] SymRef symbol_declare_homog(Context* ctx, const char* name,
 										  u16 flags);
 
-/* Declares a scalar constant named `name`, such as a coupling.
- *
- * Sets `ctx->err` and returns the null handle on an empty or duplicate name, a
- * flag that does not fit a constant, or if `ctx` already holds an error.
+/* Declares a scalar constant. Fails like `symbol_declare_tensor`.
  *
  * Example:
  *		`SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);` */
 [[nodiscard]] SymRef symbol_declare_const(Context* ctx, const char* name,
 										  u16 flags);
 
-/* Sets the LaTeX rendering of `sym` to `latex`, replacing any earlier one.
- * Does nothing if `ctx` already holds an error. Dies if `sym` is the null
- * handle or out of range.
+/* Sets the LaTeX rendering of `sym`. Does nothing after an earlier error;
+ * dies on a bad handle.
  *
  * Example:
  *		`symbol_set_latex(ctx, dK, "\\delta K");` */

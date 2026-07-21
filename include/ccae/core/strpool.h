@@ -10,23 +10,22 @@ typedef struct {
 	u32 val;
 } StringRef;
 
-/* Creates a `StringPool` whose strings live in `a` (borrowed, not owned).
- * Handle 0 is the empty string. Returns `NULL` on failed allocations.
+/* Creates a `StringPool` that stores its strings in `a` (not owned). Handle 0
+ * is "". Returns `NULL` on failed allocation.
  *
  * Example:
  *		`StringPool* sp = sp_create(a);` */
 [[nodiscard]] StringPool* sp_create(Arena* a);
 void sp_destroy(StringPool* sp);
 
-/* Returns the handle of `s`, copying `s` into the pool the first time it is
- * seen. Equal strings always get the same handle, different strings different
- * ones.
+/* Returns the handle of `s`, copying `s` the first time. Equal strings share
+ * one handle.
  *
  * Example:
  *		`StringRef name = sp_intern(sp, "spatial");` */
 [[nodiscard]] StringRef sp_intern(StringPool* sp, const char* s);
 
-/* Returns the string behind `sr`. Dies if `sr` does not belong to `sp`.
+/* Returns the string behind `sr`. Dies if `sr` is out of range.
  *
  * Example:
  *		`const char* name = sp_get(sp, bundle.name);` */

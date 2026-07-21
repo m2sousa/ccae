@@ -12,21 +12,16 @@ typedef struct {
 
 typedef Vec(Bundle) BundleVec;
 
-/* Declares a bundle (an index universe, e.g. "spatial") named `name`, whose
- * indices are named by the ASCII letters of `index_names`, one name per
- * letter. An index name belongs to one bundle only, so it tells which bundle an
- * index lives in.
- * Sets `ctx->err` and returns the null handle if `name` is empty or already
- * declared, if `index_names` is empty, holds a non-letter or a name already
- * used, or if `ctx` already holds an error.
+/* Declares the bundle `name`, whose indices are named by the letters of
+ * `index_names`. Sets `ctx->err` and returns the null handle on an empty or
+ * taken name or index name, a non-letter, or an earlier error.
  *
  * Example:
  *		`BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");` */
 [[nodiscard]] BundleRef bundle_declare(Context* ctx, const char* name,
 									   const char* index_names);
 
-/* Returns the bundle that has `index_name` among its index names, or the null
- * handle.
+/* Returns the bundle owning `index_name`, or the null handle.
  *
  * Example:
  *		`BundleRef b = bundle_find_by_index_name(ctx, 'a');` */

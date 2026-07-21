@@ -16,8 +16,7 @@ struct Context {
 	SymbolVec symbols;
 };
 
-/* Creates a `Context`, which owns the session's arena and string pool.
- * Returns `NULL` on failed allocations.
+/* Creates a `Context`. Returns `NULL` on failed allocation.
  *
  * Example:
  *		`Context* ctx = ctx_create();` */

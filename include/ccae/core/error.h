@@ -13,21 +13,20 @@ typedef struct {
 	char msg[CCAE_ERR_MSG_LENGTH];
 } Error;
 
-/* Set `err` to `code`, with a printf-style message. A message longer than
- * `CCAE_ERR_MSG_LENGTH - 1` characters is truncated.
+/* Sets `err` to `code` with a printf-style message, truncated to fit.
  *
  * Example:
  *		`err_set(&err, CCAE_INVALID_ARG, "unknown bundle '%s'.", name);` */
 void err_set(Error* err, ErrorCode code, const char* fmt, ...);
 
-/* Reset `err` to "no error": `{.code = CCAE_OK, .msg = ""}`.
+/* Resets `err` to `CCAE_OK` with an empty message.
  *
  * Example:
  *		`err_clear(&err);` */
 void err_clear(Error* err);
 
-/* Print `msg` to `stderr` and `abort()`. Only for broken invariants, never for
- * bad input (use `err_set` for that).
+/* Prints `msg` to `stderr` and aborts. For broken invariants only: bad input
+ * goes through `err_set`.
  *
  * Example:
  *		`die("CCAE (vec_append): capacity overflow.");` */

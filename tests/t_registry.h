@@ -10,7 +10,8 @@
 	X(strpool)                                                                 \
 	X(context)                                                                 \
 	X(bundle)                                                                  \
-	X(symbol)
+	X(symbol)                                                                  \
+	X(print)
 
 // Holy f*ck, that's my first (useful) X-Macro !
 #define DECLARE_TEST(t_name) DECLARE_T(t_name);

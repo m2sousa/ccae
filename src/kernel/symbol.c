@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include <ccae/config.h>
 #include <ccae/core/error.h>
 #include <ccae/core/strpool.h>
@@ -8,18 +10,21 @@
 
 static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 	for (const char* s = slotspec; *s; s += 2) {
-		if (*s != '^' && *s != '_') {
+		const char sign = s[0];
+		const char slot_name = s[1];
+
+		if (sign != '^' && sign != '_') {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"slotspec '%s': expected '^' or '_', got '%c'.", slotspec,
-					*s);
+					sign);
 			return false;
 		}
 
-		BundleRef bundle = bundle_find_by_index_name(ctx, s[1]);
-		if (!bundle.val) {
+		BundleRef bundle_ref = bundle_find_by_index_name(ctx, slot_name);
+		if (!bundle_ref.val) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"slotspec '%s': no bundle has an index name after '%c'.",
-					slotspec, *s);
+					slotspec, sign);
 			return false;
 		}
 
@@ -30,8 +35,23 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 			return false;
 		}
 
-		sym->slot_bundle[sym->nslot] = bundle;
-		sym->slot_pos[sym->nslot] = *s == '^' ? SLOT_UP : SLOT_DOWN;
+		size_t nbr_slot_in_bundle = 0;
+		for (u8 prev = 0; prev < sym->nslot; ++prev) {
+			if (sym->slot_bundle[prev].val == bundle_ref.val)
+				++nbr_slot_in_bundle;
+		}
+
+		Bundle bundle = vec_at(ctx->bundles, bundle_ref.val);
+		if (nbr_slot_in_bundle >= strlen(sp_get(ctx->sp, bundle.index_names))) {
+			err_set(
+				&ctx->err, CCAE_INVALID_ARG,
+				"slotspec '%s': more slots than index names in bundle '%s'.",
+				slotspec, sp_get(ctx->sp, bundle.name));
+			return false;
+		}
+
+		sym->slot_bundle[sym->nslot] = bundle_ref;
+		sym->slot_pos[sym->nslot] = sign == '^' ? SLOT_UP : SLOT_DOWN;
 		++sym->nslot;
 	}
 

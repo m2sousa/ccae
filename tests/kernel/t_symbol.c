@@ -17,6 +17,7 @@ static size_t test_symbol_bad_flags(void);
 static size_t test_symbol_latex(void);
 static size_t test_symbol_homog(void);
 static size_t test_symbol_const(void);
+static size_t test_symbol_too_many_slots(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -27,6 +28,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_latex();
 	fails += test_symbol_homog();
 	fails += test_symbol_const();
+	fails += test_symbol_too_many_slots();
 
 	return fails;
 }
@@ -206,6 +208,27 @@ static size_t test_symbol_const(void) {
 	CHECK(kappa_sym.nslot == 0);
 	CHECK(kappa_sym.flags & F_CONST_IN_SPACE);
 	CHECK(kappa_sym.flags & F_POSITIVE);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_symbol_too_many_slots(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef small = bundle_declare(ctx, "small", "xy");
+	CHECK(small.val != 0);
+
+	CHECK(symbol_declare_tensor(ctx, "A", SYM_FIELD, "_x_y", 0).val != 0);
+
+	CHECK(symbol_declare_tensor(ctx, "B", SYM_FIELD, "_x_y_x", 0).val == 0);
+	CHECK(strcmp(ctx->err.msg, "slotspec '_x_y_x': more slots than index "
+							   "names in bundle 'small'.") == 0);
 
 	ctx_destroy(ctx);
 

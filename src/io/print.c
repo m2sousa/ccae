@@ -55,24 +55,62 @@ static const char* kind_name(SymKind kind) {
 	return "?";
 }
 
-static void put_slots(PrintBuffer* out, const Context* ctx, const Symbol* sym) {
-	for (u8 slot = 0; slot < sym->nslot; ++slot) {
-		BundleRef bundle = sym->slot_bundle[slot];
+static char slot_name(const Context* ctx, const Symbol* sym, u8 slot) {
+	BundleRef bundle_ref = sym->slot_bundle[slot];
 
-		size_t rank = 0;
-		for (u8 prev = 0; prev < slot; ++prev) {
-			if (sym->slot_bundle[prev].val == bundle.val)
-				++rank;
+	// Count how many slots/indices from the same bundle are already taken into
+	// account in order to get the next one.
+	size_t count = 0;
+	for (u8 prev = 0; prev < slot; ++prev) {
+		if (sym->slot_bundle[prev].val == bundle_ref.val)
+			++count;
+	}
+
+	Bundle bundle = vec_at(ctx->bundles, bundle_ref.val);
+	const char* indices_string = sp_get(ctx->sp, bundle.index_names);
+
+	if (count >= strlen(indices_string))
+		die("CCAE (print_symbol): more slots than slots/index names in a "
+			"bundle.");
+
+	return indices_string[count];
+}
+
+static char slot_sign(const Symbol* sym, u8 slot) {
+	return sym->slot_pos[slot] == SLOT_UP ? '^' : '_';
+}
+
+static void put_slots_ascii(PrintBuffer* out, const Context* ctx,
+							const Symbol* sym) {
+	for (u8 slot = 0; slot < sym->nslot; ++slot) {
+		put_char(out, slot_sign(sym, slot));
+		put_char(out, slot_name(ctx, sym, slot));
+	}
+}
+
+// Slots with the same position share one group: "_{abc}". A "{}" between
+// groups keeps the slot order visible: "^{i}{}_{a}".
+static void put_slots_latex(PrintBuffer* out, const Context* ctx,
+							const Symbol* sym) {
+	for (u8 slot = 0; slot < sym->nslot; ++slot) {
+		// If first slot/index or if index is not as the same position (up/down)
+		// than the last one, open a group.
+		bool must_open_group =
+			slot == 0 || sym->slot_pos[slot] != sym->slot_pos[slot - 1];
+
+		if (must_open_group) {
+			if (slot > 0)
+				put_string(out, "}{}");
+
+			put_char(out, slot_sign(sym, slot));
+			put_char(out, '{');
 		}
 
-		// Cycle through the names when a bundle has fewer names than slots.
-		const char* names =
-			sp_get(ctx->sp, vec_at(ctx->bundles, bundle.val).index_names);
-		char name = names[rank % strlen(names)];
-
-		put_char(out, sym->slot_pos[slot] == SLOT_UP ? '^' : '_');
-		put_char(out, name);
+		put_char(out, slot_name(ctx, sym, slot));
 	}
+
+	if (sym->nslot > 0)
+		put_char(out, '}');
 }
 
 static void put_flags(PrintBuffer* out, u16 flags) {
@@ -90,7 +128,8 @@ static void put_flags(PrintBuffer* out, u16 flags) {
 	}
 }
 
-void print_symbol(const Context* ctx, SymRef sym, char* buf, size_t size) {
+void print_symbol(const Context* ctx, SymRef sym, PrintMode mode, char* buf,
+				  size_t size) {
 	if (sym.val == 0 || sym.val >= ctx->symbols.length)
 		die("CCAE (print_symbol): handle out of range.");
 
@@ -102,8 +141,15 @@ void print_symbol(const Context* ctx, SymRef sym, char* buf, size_t size) {
 	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
 	const Symbol* symbol = &vec_at(ctx->symbols, sym.val);
 
-	put_string(&out, sp_get(ctx->sp, symbol->name));
-	put_slots(&out, ctx, symbol);
+	if (mode == PRINT_LATEX) {
+		StringRef head = symbol->latex.val ? symbol->latex : symbol->name;
+
+		put_string(&out, sp_get(ctx->sp, head));
+		put_slots_latex(&out, ctx, symbol);
+	} else {
+		put_string(&out, sp_get(ctx->sp, symbol->name));
+		put_slots_ascii(&out, ctx, symbol);
+	}
 
 	put_char(&out, ' ');
 	put_string(&out, kind_name(symbol->kind));

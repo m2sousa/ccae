@@ -11,12 +11,14 @@
 static size_t test_print_tensor(void);
 static size_t test_print_scalar(void);
 static size_t test_print_truncate(void);
+static size_t test_print_latex(void);
 
 size_t test_print(void) {
 	size_t fails = 0;
 	fails += test_print_tensor();
 	fails += test_print_scalar();
 	fails += test_print_truncate();
+	fails += test_print_latex();
 
 	return fails;
 }
@@ -38,10 +40,10 @@ static size_t test_print_tensor(void) {
 
 	char buf[64];
 
-	print_symbol(ctx, dK, buf, sizeof(buf));
+	print_symbol(ctx, dK, PRINT_ASCII, buf, sizeof(buf));
 	CHECK(strcmp(buf, "dK^i_a field PHASE_SPACE|ZERO_MODE_FREE") == 0);
 
-	print_symbol(ctx, eps, buf, sizeof(buf));
+	print_symbol(ctx, eps, PRINT_ASCII, buf, sizeof(buf));
 	CHECK(strcmp(buf, "eps_a_b_c const CONST_IN_SPACE") == 0);
 
 	ctx_destroy(ctx);
@@ -59,7 +61,7 @@ static size_t test_print_scalar(void) {
 	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);
 
 	char buf[64];
-	print_symbol(ctx, kappa, buf, sizeof(buf));
+	print_symbol(ctx, kappa, PRINT_ASCII, buf, sizeof(buf));
 
 	CHECK(strcmp(buf, "kappa const CONST_IN_SPACE|POSITIVE") == 0);
 
@@ -78,9 +80,37 @@ static size_t test_print_truncate(void) {
 	SymRef kappa = symbol_declare_const(ctx, "kappa", 0);
 
 	char buf[4];
-	print_symbol(ctx, kappa, buf, sizeof(buf));
+	print_symbol(ctx, kappa, PRINT_ASCII, buf, sizeof(buf));
 
 	CHECK(strcmp(buf, "kap") == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_print_latex(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
+	CHECK(spatial.val != 0 && internal.val != 0);
+
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c", 0);
+	symbol_set_latex(ctx, dK, "\\delta K");
+
+	char buf[64];
+
+	print_symbol(ctx, dK, PRINT_LATEX, buf, sizeof(buf));
+	CHECK(strcmp(buf, "\\delta K^{i}{}_{a} field") == 0);
+
+	print_symbol(ctx, eps, PRINT_LATEX, buf, sizeof(buf));
+	CHECK(strcmp(buf, "eps_{abc} const CONST_IN_SPACE") == 0);
 
 	ctx_destroy(ctx);
 

@@ -6,7 +6,7 @@
 constexpr size_t CCAE_ERR_MSG_LENGTH = 256;
 constexpr size_t CCAE_VEC_BASE_CAP = 64;
 
-// Well, the maximum indices I've got during my research is six.. so
+// Well, the maximum slots I've got during my research is six.. so
 // here we are..
 constexpr size_t CCAE_MAX_SLOT = 6;
 

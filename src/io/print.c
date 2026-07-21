@@ -55,10 +55,10 @@ static const char* kind_name(SymKind kind) {
 	return "?";
 }
 
-static char slot_name(const Context* ctx, const Symbol* sym, u8 slot) {
+static char slot_index_name(const Context* ctx, const Symbol* sym, u8 slot) {
 	BundleRef bundle_ref = sym->slot_bundle[slot];
 
-	// Count how many slots/indices from the same bundle are already taken into
+	// Count how many slots from the same bundle are already taken into
 	// account in order to get the next one.
 	size_t count = 0;
 	for (u8 prev = 0; prev < slot; ++prev) {
@@ -67,24 +67,24 @@ static char slot_name(const Context* ctx, const Symbol* sym, u8 slot) {
 	}
 
 	Bundle bundle = vec_at(ctx->bundles, bundle_ref.val);
-	const char* indices_string = sp_get(ctx->sp, bundle.index_names);
+	const char* index_names = sp_get(ctx->sp, bundle.index_names);
 
-	if (count >= strlen(indices_string))
-		die("CCAE (print_symbol): more slots than slots/index names in a "
+	if (count >= strlen(index_names))
+		die("CCAE (print_symbol): more slots than index names in a "
 			"bundle.");
 
-	return indices_string[count];
+	return index_names[count];
 }
 
-static char slot_sign(const Symbol* sym, u8 slot) {
+static char slot_mark(const Symbol* sym, u8 slot) {
 	return sym->slot_pos[slot] == SLOT_UP ? '^' : '_';
 }
 
 static void put_slots_ascii(PrintBuffer* out, const Context* ctx,
 							const Symbol* sym) {
 	for (u8 slot = 0; slot < sym->nslot; ++slot) {
-		put_char(out, slot_sign(sym, slot));
-		put_char(out, slot_name(ctx, sym, slot));
+		put_char(out, slot_mark(sym, slot));
+		put_char(out, slot_index_name(ctx, sym, slot));
 	}
 }
 
@@ -93,8 +93,8 @@ static void put_slots_ascii(PrintBuffer* out, const Context* ctx,
 static void put_slots_latex(PrintBuffer* out, const Context* ctx,
 							const Symbol* sym) {
 	for (u8 slot = 0; slot < sym->nslot; ++slot) {
-		// If first slot/index or if index is not as the same position (up/down)
-		// than the last one, open a group.
+		// If first slot or if slot is not at the same position (up/down)
+		// as the last one, open a group.
 		bool must_open_group =
 			slot == 0 || sym->slot_pos[slot] != sym->slot_pos[slot - 1];
 
@@ -102,11 +102,11 @@ static void put_slots_latex(PrintBuffer* out, const Context* ctx,
 			if (slot > 0)
 				put_string(out, "}{}");
 
-			put_char(out, slot_sign(sym, slot));
+			put_char(out, slot_mark(sym, slot));
 			put_char(out, '{');
 		}
 
-		put_char(out, slot_name(ctx, sym, slot));
+		put_char(out, slot_index_name(ctx, sym, slot));
 	}
 
 	if (sym->nslot > 0)

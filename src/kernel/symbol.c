@@ -10,21 +10,21 @@
 
 static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 	for (const char* s = slotspec; *s; s += 2) {
-		const char sign = s[0];
-		const char slot_name = s[1];
+		const char mark = s[0];
+		const char index_name = s[1];
 
-		if (sign != '^' && sign != '_') {
+		if (mark != '^' && mark != '_') {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"slotspec '%s': expected '^' or '_', got '%c'.", slotspec,
-					sign);
+					mark);
 			return false;
 		}
 
-		BundleRef bundle_ref = bundle_find_by_index_name(ctx, slot_name);
+		BundleRef bundle_ref = bundle_find_by_index_name(ctx, index_name);
 		if (!bundle_ref.val) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"slotspec '%s': no bundle has an index name after '%c'.",
-					slotspec, sign);
+					slotspec, mark);
 			return false;
 		}
 
@@ -51,7 +51,7 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 		}
 
 		sym->slot_bundle[sym->nslot] = bundle_ref;
-		sym->slot_pos[sym->nslot] = sign == '^' ? SLOT_UP : SLOT_DOWN;
+		sym->slot_pos[sym->nslot] = mark == '^' ? SLOT_UP : SLOT_DOWN;
 		++sym->nslot;
 	}
 
@@ -74,7 +74,7 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 		return reject_flag(ctx, name, "unknown flag");
 
 	if ((flags & F_POSITIVE) && sym->nslot > 0)
-		return reject_flag(ctx, name, "F_POSITIVE on an indexed symbol");
+		return reject_flag(ctx, name, "F_POSITIVE on a symbol with slots");
 
 	if ((flags & F_PHASE_SPACE) && sym->kind != SYM_FIELD &&
 		sym->kind != SYM_HOMOG)

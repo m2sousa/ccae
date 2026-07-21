@@ -12,7 +12,7 @@ typedef struct {
 
 typedef Vec(Bundle) BundleVec;
 
-/* Declares the bundle `name`, whose indices are named by the letters of
+/* Declares the bundle `name`, whose index names are the characters of
  * `index_names`. Sets `ctx->err` and returns the null handle on an empty or
  * taken name or index name, a non-letter, or an earlier error.
  *

@@ -11,7 +11,8 @@
 	X(context)                                                                 \
 	X(bundle)                                                                  \
 	X(symbol)                                                                  \
-	X(print)
+	X(print)                                                                   \
+	X(dbm24)
 
 // Holy f*ck, that's my first (useful) X-Macro !
 #define DECLARE_TEST(t_name) DECLARE_T(t_name);

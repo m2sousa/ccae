@@ -23,4 +23,12 @@ typedef enum : u8 {
 void print_symbol(const Context* ctx, SymRef sym, PrintMode mode, char* buf,
 				  size_t size);
 
+/* Writes every symbol into `buf`, one `print_symbol` line each, ending with
+ * '\n', in declaration order. Same truncation as `print_symbol`.
+ *
+ * Example:
+ *		`print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));` */
+void print_symbol_table(const Context* ctx, PrintMode mode, char* buf,
+						size_t size);
+
 #endif

@@ -128,6 +128,24 @@ static void put_flags(PrintBuffer* out, u16 flags) {
 	}
 }
 
+static void put_symbol(PrintBuffer* out, const Context* ctx,
+					   const Symbol* symbol, PrintMode mode) {
+	if (mode == PRINT_LATEX) {
+		StringRef head = symbol->latex.val ? symbol->latex : symbol->name;
+
+		put_string(out, sp_get(ctx->sp, head));
+		put_slots_latex(out, ctx, symbol);
+	} else {
+		put_string(out, sp_get(ctx->sp, symbol->name));
+		put_slots_ascii(out, ctx, symbol);
+	}
+
+	put_char(out, ' ');
+	put_string(out, kind_name(symbol->kind));
+
+	put_flags(out, symbol->flags);
+}
+
 void print_symbol(const Context* ctx, SymRef sym, PrintMode mode, char* buf,
 				  size_t size) {
 	if (sym.val == 0 || sym.val >= ctx->symbols.length)
@@ -139,20 +157,20 @@ void print_symbol(const Context* ctx, SymRef sym, PrintMode mode, char* buf,
 	buf[0] = '\0';
 
 	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
-	const Symbol* symbol = &vec_at(ctx->symbols, sym.val);
+	put_symbol(&out, ctx, &vec_at(ctx->symbols, sym.val), mode);
+}
 
-	if (mode == PRINT_LATEX) {
-		StringRef head = symbol->latex.val ? symbol->latex : symbol->name;
+void print_symbol_table(const Context* ctx, PrintMode mode, char* buf,
+						size_t size) {
+	if (size == 0)
+		return;
 
-		put_string(&out, sp_get(ctx->sp, head));
-		put_slots_latex(&out, ctx, symbol);
-	} else {
-		put_string(&out, sp_get(ctx->sp, symbol->name));
-		put_slots_ascii(&out, ctx, symbol);
+	buf[0] = '\0';
+
+	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
+
+	for (size_t i = 1; i < ctx->symbols.length; ++i) {
+		put_symbol(&out, ctx, &vec_at(ctx->symbols, i), mode);
+		put_char(&out, '\n');
 	}
-
-	put_char(&out, ' ');
-	put_string(&out, kind_name(symbol->kind));
-
-	put_flags(&out, symbol->flags);
 }

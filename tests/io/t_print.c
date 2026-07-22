@@ -12,6 +12,7 @@ static size_t test_print_tensor(void);
 static size_t test_print_scalar(void);
 static size_t test_print_truncate(void);
 static size_t test_print_latex(void);
+static size_t test_print_table(void);
 
 size_t test_print(void) {
 	size_t fails = 0;
@@ -19,6 +20,7 @@ size_t test_print(void) {
 	fails += test_print_scalar();
 	fails += test_print_truncate();
 	fails += test_print_latex();
+	fails += test_print_table();
 
 	return fails;
 }
@@ -111,6 +113,31 @@ static size_t test_print_latex(void) {
 
 	print_symbol(ctx, eps, PRINT_LATEX, buf, sizeof(buf));
 	CHECK(strcmp(buf, "eps_{abc} const CONST_IN_SPACE") == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_print_table(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	char buf[128];
+
+	print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));
+	CHECK(strcmp(buf, "") == 0);
+
+	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);
+	SymRef p = symbol_declare_homog(ctx, "p", F_PHASE_SPACE);
+	CHECK(kappa.val != 0 && p.val != 0);
+
+	print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));
+	CHECK(strcmp(buf, "kappa const CONST_IN_SPACE|POSITIVE\n"
+					  "p homog CONST_IN_SPACE|PHASE_SPACE\n") == 0);
 
 	ctx_destroy(ctx);
 

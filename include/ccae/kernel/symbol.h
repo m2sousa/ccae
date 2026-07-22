@@ -18,7 +18,8 @@ typedef enum : u16 {
 	F_CONST_IN_SPACE = 1 << 0,
 	F_PHASE_SPACE = 1 << 1,
 	F_POSITIVE = 1 << 2,
-	F_ZERO_MODE_FREE = 1 << 3,
+	F_NONZERO = 1 << 3,
+	F_ZERO_MODE_FREE = 1 << 4,
 } SymFlag;
 
 typedef enum : u8 {

@@ -65,8 +65,8 @@ static bool reject_flag(Context* ctx, const char* name, const char* problem) {
 }
 
 static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
-	constexpr u16 ALL_FLAGS =
-		F_CONST_IN_SPACE | F_PHASE_SPACE | F_POSITIVE | F_ZERO_MODE_FREE;
+	constexpr u16 ALL_FLAGS = F_CONST_IN_SPACE | F_PHASE_SPACE | F_POSITIVE |
+							  F_NONZERO | F_ZERO_MODE_FREE;
 
 	u16 flags = sym->flags;
 
@@ -75,6 +75,10 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 
 	if ((flags & F_POSITIVE) && sym->nslot > 0)
 		return reject_flag(ctx, name, "F_POSITIVE on a symbol with slots");
+
+	// Divisions are only done with scalars, no tensors.
+	if ((flags & F_NONZERO) && sym->nslot > 0)
+		return reject_flag(ctx, name, "F_NONZERO on a symbol with slots");
 
 	if ((flags & F_PHASE_SPACE) && sym->kind != SYM_FIELD &&
 		sym->kind != SYM_HOMOG)

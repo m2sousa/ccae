@@ -134,12 +134,14 @@ static size_t test_symbol_bad_flags(void) {
 	size_t fails = 0;
 
 	CHECK(is_rejected(SYM_FIELD, "^a", F_POSITIVE));
+	CHECK(is_rejected(SYM_CONST, "^a", F_NONZERO));
 	CHECK(is_rejected(SYM_CONST, "", F_PHASE_SPACE));
 	CHECK(is_rejected(SYM_FIELD, "", F_CONST_IN_SPACE));
 	CHECK(is_rejected(SYM_CONST, "", F_ZERO_MODE_FREE));
 	CHECK(is_rejected(SYM_FIELD, "", 1 << 15));
 
 	CHECK(!is_rejected(SYM_CONST, "", F_POSITIVE));
+	CHECK(!is_rejected(SYM_CONST, "", F_NONZERO));
 	CHECK(!is_rejected(SYM_TESTFN, "", F_CONST_IN_SPACE));
 
 	return fails;

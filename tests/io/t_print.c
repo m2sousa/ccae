@@ -60,12 +60,12 @@ static size_t test_print_scalar(void) {
 	if (!ctx)
 		return 1;
 
-	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);
+	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE | F_NONZERO);
 
 	char buf[64];
 	print_symbol(ctx, kappa, PRINT_ASCII, buf, sizeof(buf));
 
-	CHECK(strcmp(buf, "kappa const CONST_IN_SPACE|POSITIVE") == 0);
+	CHECK(strcmp(buf, "kappa const CONST_IN_SPACE|POSITIVE|NONZERO") == 0);
 
 	ctx_destroy(ctx);
 

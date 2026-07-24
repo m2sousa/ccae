@@ -16,15 +16,35 @@ static bool is_selected(const char* name, int argc, char** argv) {
 	return false;
 }
 
+static void print_suite_line(const char* name, size_t fails) {
+	constexpr size_t NAME_WIDTH = 16;
+
+	printf("%s ", name);
+
+	for (size_t length = strlen(name) + 1; length < NAME_WIDTH; ++length)
+		putchar('.');
+
+	if (fails)
+		printf(" %zu failed\n", fails);
+	else
+		printf(" ok\n");
+}
+
 int main(int argc, char** argv) {
 	size_t total = 0;
+	size_t nbr_run = 0;
+	size_t nbr_failed = 0;
 
 	for (size_t i = 0; i < NBR_TESTS; ++i) {
 		if (!is_selected(tests[i].name, argc, argv))
 			continue;
 
 		size_t fails = tests[i].fn();
-		printf("%s: %zu failed\n", tests[i].name, fails);
+		print_suite_line(tests[i].name, fails);
+
+		++nbr_run;
+		if (fails)
+			++nbr_failed;
 
 		// Failures go to stderr: flush so the two streams stay in order.
 		// thanks GPT for the debug there :).
@@ -33,7 +53,13 @@ int main(int argc, char** argv) {
 		total += fails;
 	}
 
-	printf("Total: %zu failed\n", total);
+	printf("\n%zu suites: %zu passed, %zu failed", nbr_run,
+		   nbr_run - nbr_failed, nbr_failed);
+
+	if (total)
+		printf(" (%zu checks)", total);
+
+	printf("\n");
 
 	return total ? EXIT_FAILURE : EXIT_SUCCESS;
 }

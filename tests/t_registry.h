@@ -8,6 +8,7 @@
 	X(arena)                                                                   \
 	X(vec)                                                                     \
 	X(strpool)                                                                 \
+	X(rational)                                                                \
 	X(context)                                                                 \
 	X(bundle)                                                                  \
 	X(symbol)                                                                  \

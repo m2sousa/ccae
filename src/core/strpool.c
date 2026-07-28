@@ -3,6 +3,7 @@
 
 #include <ccae/core/arena.h>
 #include <ccae/core/error.h>
+#include <ccae/core/hash.h>
 #include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
 #include <ccae/types.h>
@@ -20,19 +21,6 @@ struct StringPool {
 	StringEntryVec entries;
 };
 
-static u64 FNV_1a(const char* s) {
-	// Parameters have been taken from :
-	// en.wikipedia.org/wiki/Fowler-Noll-Vo_hash_function#FNV-1a_hash
-	u64 hash = 0xcbf29ce484222325;
-
-	for (; *s; ++s) {
-		hash ^= (u8)*s;
-		hash *= 0x00000100000001b3;
-	}
-
-	return hash;
-}
-
 StringPool* sp_create(Arena* a) {
 	StringPool* sp = malloc(sizeof(*sp));
 	if (!sp)
@@ -43,7 +31,7 @@ StringPool* sp_create(Arena* a) {
 	StringEntryVec entries = {0};
 	vec_init(entries);
 
-	StringEntry null = {.data = "", .length = 0, .hash = FNV_1a("")};
+	StringEntry null = {.data = "", .length = 0, .hash = hash_bytes("", 0)};
 	vec_append(a, entries, null);
 
 	sp->entries = entries;
@@ -53,7 +41,7 @@ StringPool* sp_create(Arena* a) {
 
 StringRef sp_intern(StringPool* sp, const char* s) {
 	size_t length = strlen(s);
-	u64 hash = FNV_1a(s);
+	u64 hash = hash_bytes(s, length);
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 0; i < sp->entries.length; ++i) {

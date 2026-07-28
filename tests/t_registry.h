@@ -7,6 +7,7 @@
 	X(error)                                                                   \
 	X(arena)                                                                   \
 	X(vec)                                                                     \
+	X(hash)                                                                    \
 	X(strpool)                                                                 \
 	X(rational)                                                                \
 	X(context)                                                                 \

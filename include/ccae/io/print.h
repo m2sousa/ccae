@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 
+#include <ccae/core/rational.h>
 #include <ccae/kernel/fwd.h>
 #include <ccae/types.h>
 
@@ -30,5 +31,13 @@ void print_symbol(const Context* ctx, SymRef sym, PrintMode mode, char* buf,
  *		`print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));` */
 void print_symbol_table(const Context* ctx, PrintMode mode, char* buf,
 						size_t size);
+
+/* Writes `r` into `buf`, same truncation as `print_symbol`. Integers drop
+ * the denominator; `PRINT_LATEX` writes the others with `\frac`.
+ *
+ * Example:
+ *		`print_rational(rat_new(-1, 2), PRINT_ASCII, buf, sizeof(buf));` gives
+ *		"-1/2"; with `PRINT_LATEX`, "-\frac{1}{2}". */
+void print_rational(Rational r, PrintMode mode, char* buf, size_t size);
 
 #endif

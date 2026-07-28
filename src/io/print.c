@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <ccae/core/error.h>
+#include <ccae/core/rational.h>
 #include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
 #include <ccae/io/print.h>
@@ -39,6 +40,21 @@ static void put_char(PrintBuffer* out, char c) {
 static void put_string(PrintBuffer* out, const char* s) {
 	for (; *s; ++s)
 		put_char(out, *s);
+}
+
+static void put_u64(PrintBuffer* out, u64 n) {
+	constexpr size_t MAX_DIGITS = 20;
+
+	char digits[MAX_DIGITS];
+	size_t nbr_digits = 0;
+
+	do {
+		digits[nbr_digits++] = (char)('0' + n % 10);
+		n /= 10;
+	} while (n != 0);
+
+	while (nbr_digits > 0)
+		put_char(out, digits[--nbr_digits]);
 }
 
 static const char* kind_name(SymKind kind) {
@@ -173,5 +189,31 @@ void print_symbol_table(const Context* ctx, PrintMode mode, char* buf,
 	for (size_t i = 1; i < ctx->symbols.length; ++i) {
 		put_symbol(&out, ctx, &vec_at(ctx->symbols, i), mode);
 		put_char(&out, '\n');
+	}
+}
+
+void print_rational(Rational r, PrintMode mode, char* buf, size_t size) {
+	if (size == 0)
+		return;
+
+	buf[0] = '\0';
+
+	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
+
+	if (r.negative)
+		put_char(&out, '-');
+
+	if (r.den == 1) {
+		put_u64(&out, r.num);
+	} else if (mode == PRINT_LATEX) {
+		put_string(&out, "\\frac{");
+		put_u64(&out, r.num);
+		put_string(&out, "}{");
+		put_u64(&out, r.den);
+		put_char(&out, '}');
+	} else {
+		put_u64(&out, r.num);
+		put_char(&out, '/');
+		put_u64(&out, r.den);
 	}
 }

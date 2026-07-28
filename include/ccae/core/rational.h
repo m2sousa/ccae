@@ -64,4 +64,11 @@ Rational rat_add(Rational a, Rational b);
  *		`Rational c = rat_sub(rat_new(1, 2), rat_new(1, 3));` is 1/6. */
 Rational rat_sub(Rational a, Rational b);
 
+/* Returns -1, 0 or 1 as `a` is less than, equal to or greater than `b`.
+ * Dies on overflow.
+ *
+ * Example:
+ *		`rat_cmp(rat_new(1, 3), rat_new(1, 2))` is -1. */
+int rat_cmp(Rational a, Rational b);
+
 #endif

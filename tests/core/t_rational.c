@@ -13,6 +13,7 @@ static size_t test_rational_mul(void);
 static size_t test_rational_div(void);
 static size_t test_rational_add(void);
 static size_t test_rational_sub(void);
+static size_t test_rational_cmp(void);
 
 size_t test_rational(void) {
 	size_t fails = 0;
@@ -24,6 +25,7 @@ size_t test_rational(void) {
 	fails += test_rational_div();
 	fails += test_rational_add();
 	fails += test_rational_sub();
+	fails += test_rational_cmp();
 
 	return fails;
 }
@@ -132,6 +134,24 @@ static size_t test_rational_sub(void) {
 	CHECK(is_equal(rat_sub(rat_new(1, 3), rat_new(1, 2)), true, 1, 6));
 	CHECK(is_equal(rat_sub(rat_new(3, 4), rat_new(3, 4)), false, 0, 1));
 	CHECK(is_equal(rat_sub(rat_new(-1, 2), rat_new(1, 2)), true, 1, 1));
+
+	return fails;
+}
+
+static size_t test_rational_cmp(void) {
+	size_t fails = 0;
+
+	CHECK(rat_cmp(rat_new(1, 3), rat_new(1, 2)) == -1);
+	CHECK(rat_cmp(rat_new(1, 2), rat_new(1, 3)) == 1);
+	CHECK(rat_cmp(rat_new(2, 4), rat_new(1, 2)) == 0);
+
+	CHECK(rat_cmp(rat_new(-1, 2), rat_new(-1, 3)) == -1);
+	CHECK(rat_cmp(rat_new(-1, 2), rat_new(1, 3)) == -1);
+	CHECK(rat_cmp(rat_from_int(0), rat_new(-1, 3)) == 1);
+	CHECK(rat_cmp(rat_from_int(0), rat_neg(rat_from_int(0))) == 0);
+
+	Rational big = rat_from_int(INT64_MIN);
+	CHECK(rat_cmp(big, rat_from_int(INT64_MIN + 1)) == -1);
 
 	return fails;
 }

@@ -135,3 +135,19 @@ Rational rat_sub(Rational a, Rational b) {
 
 	return r;
 }
+
+int rat_cmp(Rational a, Rational b) {
+	if (a.negative != b.negative)
+		return a.negative ? -1 : 1;
+
+	u64 left = 0;
+	u64 right = 0;
+
+	// FIXME: Note that products over 64 bits would die.
+	if (ckd_mul(&left, a.num, b.den) || ckd_mul(&right, b.num, a.den))
+		die("CCAE (rat_cmp): rational overflow.");
+
+	int order = (left > right) - (left < right);
+
+	return a.negative ? -order : order;
+}

@@ -13,4 +13,8 @@ typedef struct {
 	u32 val;
 } SymRef;
 
+typedef struct {
+	u32 val;
+} FacRef;
+
 #endif

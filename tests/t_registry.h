@@ -13,6 +13,7 @@
 	X(context)                                                                 \
 	X(bundle)                                                                  \
 	X(symbol)                                                                  \
+	X(factor)                                                                  \
 	X(print)                                                                   \
 	X(dbm24)
 

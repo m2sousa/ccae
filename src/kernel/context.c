@@ -6,10 +6,11 @@
 #include <ccae/core/vec.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
+#include <ccae/kernel/factor.h>
 #include <ccae/kernel/symbol.h>
 
-// TODO: Those two helpers function are very similar, could do a macro there to
-// simplify. Will to it later when improving on readibility. Want to focus on
+// TODO: Those three helpers function are very similar, could do a macro there
+// to simplify. Will to it later when improving on readibility. Want to focus on
 // the rewrite for now.
 static void init_bundles(Context* ctx, Arena* arena) {
 	vec_init(ctx->bundles);
@@ -23,6 +24,13 @@ static void init_symbols(Context* ctx, Arena* arena) {
 
 	Symbol null_symbol = {0};
 	vec_append(arena, ctx->symbols, null_symbol);
+}
+
+static void init_factors(Context* ctx, Arena* arena) {
+	vec_init(ctx->factors);
+
+	Factor null_factor = {0};
+	vec_append(arena, ctx->factors, null_factor);
 }
 
 Context* ctx_create(void) {
@@ -45,6 +53,7 @@ Context* ctx_create(void) {
 
 	init_bundles(ctx, arena);
 	init_symbols(ctx, arena);
+	init_factors(ctx, arena);
 
 	ctx->perm = arena;
 	ctx->sp = sp;

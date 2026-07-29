@@ -86,14 +86,14 @@ static size_t test_symbol_declare(void) {
 	BundleRef spatial = bundle_find_by_index_name(ctx, 'a');
 	BundleRef internal = bundle_find_by_index_name(ctx, 'i');
 
-	CHECK(dK_sym.nslot == 2);
+	CHECK(dK_sym.nbr_slot == 2);
 	CHECK(dK_sym.slot_bundle[0].val == internal.val);
 	CHECK(dK_sym.slot_pos[0] == SLOT_UP);
 	CHECK(dK_sym.slot_bundle[1].val == spatial.val);
 	CHECK(dK_sym.slot_pos[1] == SLOT_DOWN);
 
 	CHECK(vec_at(ctx->symbols, eps.val).flags & F_CONST_IN_SPACE);
-	CHECK(vec_at(ctx->symbols, dphi.val).nslot == 0);
+	CHECK(vec_at(ctx->symbols, dphi.val).nbr_slot == 0);
 
 	ctx_destroy(ctx);
 
@@ -181,7 +181,7 @@ static size_t test_symbol_homog(void) {
 
 	Symbol p_sym = vec_at(ctx->symbols, p.val);
 	CHECK(p_sym.kind == SYM_HOMOG);
-	CHECK(p_sym.nslot == 0);
+	CHECK(p_sym.nbr_slot == 0);
 	CHECK(p_sym.flags & F_CONST_IN_SPACE);
 	CHECK(p_sym.flags & F_PHASE_SPACE);
 
@@ -207,7 +207,7 @@ static size_t test_symbol_const(void) {
 
 	Symbol kappa_sym = vec_at(ctx->symbols, kappa.val);
 	CHECK(kappa_sym.kind == SYM_CONST);
-	CHECK(kappa_sym.nslot == 0);
+	CHECK(kappa_sym.nbr_slot == 0);
 	CHECK(kappa_sym.flags & F_CONST_IN_SPACE);
 	CHECK(kappa_sym.flags & F_POSITIVE);
 

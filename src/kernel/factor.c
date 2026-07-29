@@ -17,7 +17,7 @@ static bool check_power(Context* ctx, const Symbol* sym, Rational power) {
 	if (rat_is_zero(power))
 		return reject_power(ctx, sym, "power 0");
 
-	if (sym->nslot > 0 && !rat_is_one(power))
+	if (sym->nbr_slot > 0 && !rat_is_one(power))
 		return reject_power(ctx, sym,
 							"power other than 1 on a symbol with slots");
 

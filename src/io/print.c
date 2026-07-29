@@ -99,7 +99,7 @@ static char slot_mark(const Symbol* sym, u8 slot) {
 
 static void put_slots_ascii(PrintBuffer* out, const Context* ctx,
 							const Symbol* sym) {
-	for (u8 slot = 0; slot < sym->nslot; ++slot) {
+	for (u8 slot = 0; slot < sym->nbr_slot; ++slot) {
 		put_char(out, slot_mark(sym, slot));
 		put_char(out, slot_index_name(ctx, sym, slot));
 	}
@@ -109,7 +109,7 @@ static void put_slots_ascii(PrintBuffer* out, const Context* ctx,
 // groups keeps the slot order visible: "^{i}{}_{a}".
 static void put_slots_latex(PrintBuffer* out, const Context* ctx,
 							const Symbol* sym) {
-	for (u8 slot = 0; slot < sym->nslot; ++slot) {
+	for (u8 slot = 0; slot < sym->nbr_slot; ++slot) {
 		// If first slot or if slot is not at the same position (up/down)
 		// as the last one, open a group.
 		bool must_open_group =
@@ -126,7 +126,7 @@ static void put_slots_latex(PrintBuffer* out, const Context* ctx,
 		put_char(out, slot_index_name(ctx, sym, slot));
 	}
 
-	if (sym->nslot > 0)
+	if (sym->nbr_slot > 0)
 		put_char(out, '}');
 }
 

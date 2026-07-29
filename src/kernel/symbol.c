@@ -28,7 +28,7 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 			return false;
 		}
 
-		if (sym->nslot == CCAE_MAX_SLOT) {
+		if (sym->nbr_slot == CCAE_MAX_SLOT) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"slotspec '%s': more than %zu slots.", slotspec,
 					CCAE_MAX_SLOT);
@@ -36,7 +36,7 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 		}
 
 		size_t nbr_slot_in_bundle = 0;
-		for (u8 prev = 0; prev < sym->nslot; ++prev) {
+		for (u8 prev = 0; prev < sym->nbr_slot; ++prev) {
 			if (sym->slot_bundle[prev].val == bundle_ref.val)
 				++nbr_slot_in_bundle;
 		}
@@ -50,9 +50,9 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 			return false;
 		}
 
-		sym->slot_bundle[sym->nslot] = bundle_ref;
-		sym->slot_pos[sym->nslot] = mark == '^' ? SLOT_UP : SLOT_DOWN;
-		++sym->nslot;
+		sym->slot_bundle[sym->nbr_slot] = bundle_ref;
+		sym->slot_pos[sym->nbr_slot] = mark == '^' ? SLOT_UP : SLOT_DOWN;
+		++sym->nbr_slot;
 	}
 
 	return true;
@@ -73,11 +73,11 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 	if (flags & ~ALL_FLAGS)
 		return reject_flag(ctx, name, "unknown flag");
 
-	if ((flags & F_POSITIVE) && sym->nslot > 0)
+	if ((flags & F_POSITIVE) && sym->nbr_slot > 0)
 		return reject_flag(ctx, name, "F_POSITIVE on a symbol with slots");
 
 	// Divisions are only done with scalars, no tensors.
-	if ((flags & F_NONZERO) && sym->nslot > 0)
+	if ((flags & F_NONZERO) && sym->nbr_slot > 0)
 		return reject_flag(ctx, name, "F_NONZERO on a symbol with slots");
 
 	if ((flags & F_PHASE_SPACE) && sym->kind != SYM_FIELD &&

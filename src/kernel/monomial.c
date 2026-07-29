@@ -42,9 +42,9 @@ static bool merge_powers(Context* ctx, Monomial* mono) {
 
 	while (i < mono->nbr_fac) {
 		Factor first = vec_at(ctx->factors, mono->fac[i].val);
-		u64 nslot = vec_at(ctx->symbols, first.head.val).nslot;
+		u64 nbr_slot = vec_at(ctx->symbols, first.head.val).nbr_slot;
 
-		if (nslot > 0) {
+		if (nbr_slot > 0) {
 			mono->fac[nbr_kept++] = mono->fac[i++];
 			continue;
 		}

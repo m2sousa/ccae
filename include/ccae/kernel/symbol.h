@@ -32,7 +32,7 @@ typedef struct {
 	StringRef latex;
 	SymKind kind;
 	u16 flags;
-	u8 nslot;
+	u8 nbr_slot;
 	BundleRef slot_bundle[CCAE_MAX_SLOT];
 	SlotPos slot_pos[CCAE_MAX_SLOT];
 } Symbol;

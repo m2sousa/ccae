@@ -14,6 +14,7 @@
 	X(bundle)                                                                  \
 	X(symbol)                                                                  \
 	X(factor)                                                                  \
+	X(monomial)                                                                \
 	X(print)                                                                   \
 	X(dbm24)
 

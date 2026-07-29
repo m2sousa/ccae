@@ -17,4 +17,8 @@ typedef struct {
 	u32 val;
 } FacRef;
 
+typedef struct {
+	u32 val;
+} MonoRef;
+
 #endif

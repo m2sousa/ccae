@@ -1,0 +1,28 @@
+#ifndef CCAE_MONOMIAL_H
+#define CCAE_MONOMIAL_H
+
+#include <stddef.h>
+
+#include <ccae/config.h>
+#include <ccae/core/vec.h>
+#include <ccae/kernel/fwd.h>
+#include <ccae/types.h>
+
+typedef struct {
+	u64 nbr_fac;
+	FacRef fac[CCAE_MAX_FACTORS];
+} Monomial;
+
+typedef Vec(Monomial) MonomialVec;
+
+/* Returns the handle of the product of the `nbr_fac` factors at `facs`, in any
+ * order, storing it the first time.
+ * Sets `ctx->err` and returns the null handle on more than `CCAE_MAX_FACTORS`
+ * factors.
+ *
+ * Example:
+ *		`MonoRef m = mono_intern(ctx, (FacRef[]){sqrt_p, dK}, 2);` */
+[[nodiscard]] MonoRef mono_intern(Context* ctx, const FacRef* facs,
+								  size_t nbr_fac);
+
+#endif

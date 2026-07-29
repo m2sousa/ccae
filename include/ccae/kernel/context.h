@@ -7,6 +7,7 @@
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/factor.h>
 #include <ccae/kernel/fwd.h>
+#include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
 struct Context {
@@ -16,6 +17,7 @@ struct Context {
 	BundleVec bundles;
 	SymbolVec symbols;
 	FactorVec factors;
+	MonomialVec monomials;
 };
 
 /* Creates a `Context`. Returns `NULL` on failed allocation.

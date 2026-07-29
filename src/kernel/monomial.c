@@ -2,10 +2,12 @@
 
 #include <ccae/config.h>
 #include <ccae/core/error.h>
+#include <ccae/core/rational.h>
 #include <ccae/core/vec.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/factor.h>
 #include <ccae/kernel/monomial.h>
+#include <ccae/kernel/symbol.h>
 
 static bool comes_before(const Context* ctx, FacRef a, FacRef b) {
 	u32 head_a = vec_at(ctx->factors, a.val).head.val;
@@ -30,6 +32,47 @@ static void sort_factors(const Context* ctx, Monomial* mono) {
 
 		mono->fac[j] = current;
 	}
+}
+
+// Merge scalar factor (ex: x*x => x^2) by adding their power,
+// do nothing otherwise.
+static bool merge_powers(Context* ctx, Monomial* mono) {
+	size_t nbr_kept = 0;
+	size_t i = 0;
+
+	while (i < mono->nbr_fac) {
+		Factor first = vec_at(ctx->factors, mono->fac[i].val);
+		u64 nslot = vec_at(ctx->symbols, first.head.val).nslot;
+
+		if (nslot > 0) {
+			mono->fac[nbr_kept++] = mono->fac[i++];
+			continue;
+		}
+
+		Rational power = first.power;
+
+		for (++i; i < mono->nbr_fac; ++i) {
+			Factor next = vec_at(ctx->factors, mono->fac[i].val);
+
+			if (next.head.val != first.head.val)
+				break;
+
+			power = rat_add(power, next.power);
+		}
+
+		if (rat_is_zero(power))
+			continue;
+
+		FacRef merged = factor_intern(ctx, first.head, power);
+		if (merged.val == 0)
+			return false;
+
+		mono->fac[nbr_kept++] = merged;
+	}
+
+	mono->nbr_fac = (u64)nbr_kept;
+
+	return true;
 }
 
 static bool same_factors(const Monomial* a, const Monomial* b) {
@@ -66,6 +109,9 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 	}
 
 	sort_factors(ctx, &mono);
+
+	if (!merge_powers(ctx, &mono))
+		return null_ref;
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 1; i < ctx->monomials.length; ++i) {

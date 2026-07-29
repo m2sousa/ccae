@@ -14,12 +14,16 @@
 static size_t test_monomial_order(void);
 static size_t test_monomial_one(void);
 static size_t test_monomial_too_many(void);
+static size_t test_monomial_merge(void);
+static size_t test_monomial_tensors_stay(void);
 
 size_t test_monomial(void) {
 	size_t fails = 0;
 	fails += test_monomial_order();
 	fails += test_monomial_one();
 	fails += test_monomial_too_many();
+	fails += test_monomial_merge();
+	fails += test_monomial_tensors_stay();
 
 	return fails;
 }
@@ -94,6 +98,66 @@ static size_t test_monomial_too_many(void) {
 
 	CHECK(mono_intern(ctx, facs, CCAE_MAX_FACTORS + 1).val == 0);
 	CHECK(!ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_monomial_merge(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef y = symbol_declare_homog(ctx, "y", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
+
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef p_half = factor_intern(ctx, p, rat_new(1, 2));
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
+
+	MonoRef x_x = mono_intern(ctx, (FacRef[]){x_one, x_one}, 2);
+	CHECK(x_x.val == mono_intern(ctx, (FacRef[]){x_two}, 1).val);
+
+	MonoRef x_y_x = mono_intern(ctx, (FacRef[]){x_one, y_one, x_one}, 3);
+	CHECK(x_y_x.val == mono_intern(ctx, (FacRef[]){x_two, y_one}, 2).val);
+
+	MonoRef p_cancel = mono_intern(ctx, (FacRef[]){p_half, p_minus_half}, 2);
+	CHECK(p_cancel.val == mono_intern(ctx, NULL, 0).val);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_monomial_tensors_stay(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", 0);
+	FacRef dE_one = factor_intern(ctx, dE, rat_from_int(1));
+	CHECK(spatial.val != 0 && dE_one.val != 0);
+
+	MonoRef dE_dE = mono_intern(ctx, (FacRef[]){dE_one, dE_one}, 2);
+	CHECK(vec_at(ctx->monomials, dE_dE.val).nbr_fac == 2);
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
+
+	MonoRef x_dE_x = mono_intern(ctx, (FacRef[]){x_one, dE_one, x_one}, 3);
+	CHECK(x_dE_x.val == mono_intern(ctx, (FacRef[]){x_two, dE_one}, 2).val);
 
 	ctx_destroy(ctx);
 

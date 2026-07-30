@@ -127,3 +127,34 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	return mr;
 }
+
+MonoRef mono_mul(Context* ctx, MonoRef a, MonoRef b) {
+	MonoRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (a.val == 0 || a.val >= ctx->monomials.length || b.val == 0 ||
+		b.val >= ctx->monomials.length)
+		die("CCAE (mono_mul): monomial handle out of range.");
+
+	Monomial mono_a = vec_at(ctx->monomials, a.val);
+	Monomial mono_b = vec_at(ctx->monomials, b.val);
+
+	if (mono_a.nbr_fac + mono_b.nbr_fac > CCAE_MAX_FACTORS) {
+		err_set(&ctx->err, CCAE_INVALID_ARG, "monomial: more than %zu factors.",
+				CCAE_MAX_FACTORS);
+		return null_ref;
+	}
+
+	FacRef facs[CCAE_MAX_FACTORS];
+	size_t nbr_fac = 0;
+
+	for (u64 i = 0; i < mono_a.nbr_fac; ++i)
+		facs[nbr_fac++] = mono_a.fac[i];
+
+	for (u64 i = 0; i < mono_b.nbr_fac; ++i)
+		facs[nbr_fac++] = mono_b.fac[i];
+
+	return mono_intern(ctx, facs, nbr_fac);
+}

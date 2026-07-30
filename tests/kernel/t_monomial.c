@@ -16,6 +16,7 @@ static size_t test_monomial_one(void);
 static size_t test_monomial_too_many(void);
 static size_t test_monomial_merge(void);
 static size_t test_monomial_tensors_stay(void);
+static size_t test_monomial_mul(void);
 
 size_t test_monomial(void) {
 	size_t fails = 0;
@@ -24,6 +25,7 @@ size_t test_monomial(void) {
 	fails += test_monomial_too_many();
 	fails += test_monomial_merge();
 	fails += test_monomial_tensors_stay();
+	fails += test_monomial_mul();
 
 	return fails;
 }
@@ -94,9 +96,15 @@ static size_t test_monomial_too_many(void) {
 	for (size_t i = 0; i < CCAE_MAX_FACTORS + 1; ++i)
 		facs[i] = dE_one;
 
-	CHECK(mono_intern(ctx, facs, CCAE_MAX_FACTORS).val != 0);
+	MonoRef full = mono_intern(ctx, facs, CCAE_MAX_FACTORS);
+	MonoRef just_dE = mono_intern(ctx, facs, 1);
+	CHECK(full.val != 0 && just_dE.val != 0);
 
 	CHECK(mono_intern(ctx, facs, CCAE_MAX_FACTORS + 1).val == 0);
+	CHECK(!ctx_ok(ctx));
+	ctx_clear_err(ctx);
+
+	CHECK(mono_mul(ctx, full, just_dE).val == 0);
 	CHECK(!ctx_ok(ctx));
 
 	ctx_destroy(ctx);
@@ -158,6 +166,42 @@ static size_t test_monomial_tensors_stay(void) {
 
 	MonoRef x_dE_x = mono_intern(ctx, (FacRef[]){x_one, dE_one, x_one}, 3);
 	CHECK(x_dE_x.val == mono_intern(ctx, (FacRef[]){x_two, dE_one}, 2).val);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_monomial_mul(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef y = symbol_declare_homog(ctx, "y", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
+
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef p_half = factor_intern(ctx, p, rat_new(1, 2));
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
+
+	MonoRef one = mono_intern(ctx, NULL, 0);
+	MonoRef just_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
+	MonoRef x_y = mono_intern(ctx, (FacRef[]){x_one, y_one}, 2);
+	MonoRef x2_y = mono_intern(ctx, (FacRef[]){x_two, y_one}, 2);
+	MonoRef sqrt_p = mono_intern(ctx, (FacRef[]){p_half}, 1);
+	MonoRef inverse_sqrt_p = mono_intern(ctx, (FacRef[]){p_minus_half}, 1);
+
+	CHECK(mono_mul(ctx, sqrt_p, inverse_sqrt_p).val == one.val);
+	CHECK(mono_mul(ctx, just_x, x_y).val == x2_y.val);
+	CHECK(mono_mul(ctx, x_y, just_x).val == x2_y.val);
+	CHECK(mono_mul(ctx, one, x_y).val == x_y.val);
+
+	CHECK(ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

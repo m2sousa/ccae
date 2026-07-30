@@ -25,4 +25,10 @@ typedef Vec(Monomial) MonomialVec;
 [[nodiscard]] MonoRef mono_intern(Context* ctx, const FacRef* facs,
 								  size_t nbr_fac);
 
+/* Returns the handle of `a * b`. Fails like `mono_intern`.
+ *
+ * Example:
+ *		`MonoRef m = mono_mul(ctx, sqrt_p, dK);` */
+[[nodiscard]] MonoRef mono_mul(Context* ctx, MonoRef a, MonoRef b);
+
 #endif

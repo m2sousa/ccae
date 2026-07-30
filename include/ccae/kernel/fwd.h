@@ -21,4 +21,8 @@ typedef struct {
 	u32 val;
 } MonoRef;
 
+typedef struct {
+	u32 val;
+} ExprRef;
+
 #endif

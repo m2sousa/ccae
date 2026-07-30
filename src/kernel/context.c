@@ -6,11 +6,12 @@
 #include <ccae/core/vec.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
+#include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
-// TODO: Those four helpers function are very similar, could do a macro there
+// TODO: Those five helpers function are very similar, could do a macro there
 // to simplify. Will to it later when improving on readibility. Want to focus on
 // the rewrite for now.
 static void init_bundles(Context* ctx, Arena* arena) {
@@ -41,6 +42,13 @@ static void init_monomials(Context* ctx, Arena* arena) {
 	vec_append(arena, ctx->monomials, null_monomial);
 }
 
+static void init_exprs(Context* ctx, Arena* arena) {
+	vec_init(ctx->exprs);
+
+	Expr null_expr = {0};
+	vec_append(arena, ctx->exprs, null_expr);
+}
+
 Context* ctx_create(void) {
 	Context* ctx = malloc(sizeof(*ctx));
 	if (!ctx)
@@ -63,6 +71,7 @@ Context* ctx_create(void) {
 	init_symbols(ctx, arena);
 	init_factors(ctx, arena);
 	init_monomials(ctx, arena);
+	init_exprs(ctx, arena);
 
 	ctx->perm = arena;
 	ctx->sp = sp;

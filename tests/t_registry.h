@@ -15,6 +15,7 @@
 	X(symbol)                                                                  \
 	X(factor)                                                                  \
 	X(monomial)                                                                \
+	X(expr)                                                                    \
 	X(print)                                                                   \
 	X(dbm24)
 

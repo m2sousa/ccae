@@ -9,7 +9,7 @@
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
-static bool comes_before(const Context* ctx, FacRef a, FacRef b) {
+static bool factor_comes_before(const Context* ctx, FacRef a, FacRef b) {
 	u32 head_a = vec_at(ctx->factors, a.val).head.val;
 	u32 head_b = vec_at(ctx->factors, b.val).head.val;
 
@@ -25,7 +25,7 @@ static void sort_factors(const Context* ctx, Monomial* mono) {
 		FacRef current = mono->fac[i];
 		u64 j = i;
 
-		while (j > 0 && comes_before(ctx, current, mono->fac[j - 1])) {
+		while (j > 0 && factor_comes_before(ctx, current, mono->fac[j - 1])) {
 			mono->fac[j] = mono->fac[j - 1];
 			--j;
 		}
@@ -75,7 +75,7 @@ static bool merge_powers(Context* ctx, Monomial* mono) {
 	return true;
 }
 
-static bool same_factors(const Monomial* a, const Monomial* b) {
+static bool have_same_factors(const Monomial* a, const Monomial* b) {
 	if (a->nbr_fac != b->nbr_fac)
 		return false;
 
@@ -115,7 +115,7 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 1; i < ctx->monomials.length; ++i) {
-		if (same_factors(&vec_at(ctx->monomials, i), &mono)) {
+		if (have_same_factors(&vec_at(ctx->monomials, i), &mono)) {
 			MonoRef found = {.val = (u32)i};
 			return found;
 		}

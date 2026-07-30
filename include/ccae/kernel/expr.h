@@ -29,4 +29,10 @@ typedef Vec(Expr) ExprVec;
  *		`ExprRef e = expr_intern(ctx, (Term[]){{half, x}, {half, x}}, 2);` */
 [[nodiscard]] ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term);
 
+/* Returns the handle of `a + b`.
+ *
+ * Example:
+ *		`ExprRef sum = expr_add(ctx, x, y);` */
+[[nodiscard]] ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b);
+
 #endif

@@ -102,3 +102,40 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 
 	return find_or_store(ctx, terms, nbr_kept);
 }
+
+ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b) {
+	ExprRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (a.val == 0 || a.val >= ctx->exprs.length || b.val == 0 ||
+		b.val >= ctx->exprs.length)
+		die("CCAE (expr_add): expression handle out of range.");
+
+	Expr expr_a = vec_at(ctx->exprs, a.val);
+	Expr expr_b = vec_at(ctx->exprs, b.val);
+	size_t nbr_term = expr_a.nbr_term + expr_b.nbr_term;
+
+	if (nbr_term == 0)
+		return expr_intern(ctx, NULL, 0);
+
+	// FIXME: This malloc goes against the introduction of the arena I've done.
+	// An arena must be used for temporary work when it has been proved to work.
+	Term* terms = malloc(nbr_term * sizeof(Term));
+	if (!terms)
+		die("CCAE (expr_add): out of memory.");
+
+	if (expr_a.nbr_term > 0)
+		memcpy(terms, expr_a.terms, expr_a.nbr_term * sizeof(Term));
+
+	if (expr_b.nbr_term > 0)
+		memcpy(terms + expr_a.nbr_term, expr_b.terms,
+			   expr_b.nbr_term * sizeof(Term));
+
+	ExprRef sum = expr_intern(ctx, terms, nbr_term);
+
+	free(terms);
+
+	return sum;
+}

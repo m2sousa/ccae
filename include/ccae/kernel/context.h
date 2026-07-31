@@ -13,6 +13,8 @@
 
 struct Context {
 	Arena* perm;
+	// scratch arena: nullprogram.com/blog/2023/09/27/
+	Arena* scratch;
 	StringPool* sp;
 	Error err;
 	BundleVec bundles;

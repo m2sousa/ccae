@@ -121,9 +121,7 @@ ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b) {
 	if (nbr_term == 0)
 		return expr_intern(ctx, NULL, 0);
 
-	// FIXME: This malloc goes against the introduction of the arena I've done.
-	// An arena must be used for temporary work when it has been proved to work.
-	Term* terms = malloc(nbr_term * sizeof(Term));
+	Term* terms = arena_alloc_array(ctx->scratch, Term, nbr_term);
 	if (!terms)
 		die("CCAE (expr_add): out of memory.");
 
@@ -136,7 +134,7 @@ ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b) {
 
 	ExprRef sum = expr_intern(ctx, terms, nbr_term);
 
-	free(terms);
+	arena_reset(ctx->scratch);
 
 	return sum;
 }
@@ -155,9 +153,7 @@ ExprRef expr_scale(Context* ctx, ExprRef e, Rational r) {
 	if (expr.nbr_term == 0 || rat_is_zero(r))
 		return expr_intern(ctx, NULL, 0);
 
-	// FIXME: This malloc goes against the introduction of the arena I've done.
-	// An arena must be used for temporary work when it has been proved to work.
-	Term* terms = malloc(expr.nbr_term * sizeof(Term));
+	Term* terms = arena_alloc_array(ctx->scratch, Term, expr.nbr_term);
 	if (!terms)
 		die("CCAE (expr_scale): out of memory.");
 
@@ -168,7 +164,7 @@ ExprRef expr_scale(Context* ctx, ExprRef e, Rational r) {
 
 	ExprRef scaled = expr_intern(ctx, terms, expr.nbr_term);
 
-	free(terms);
+	arena_reset(ctx->scratch);
 
 	return scaled;
 }
@@ -194,9 +190,7 @@ ExprRef expr_mul(Context* ctx, ExprRef a, ExprRef b) {
 	if (nbr_term == 0)
 		return expr_intern(ctx, NULL, 0);
 
-	// FIXME: This malloc goes against the introduction of the arena I've done.
-	// An arena must be used for temporary work when it has been proved to work.
-	Term* terms = malloc(nbr_term * sizeof(Term));
+	Term* terms = arena_alloc_array(ctx->scratch, Term, nbr_term);
 	if (!terms)
 		die("CCAE (expr_mul): out of memory.");
 
@@ -210,7 +204,7 @@ ExprRef expr_mul(Context* ctx, ExprRef a, ExprRef b) {
 			MonoRef mono = mono_mul(ctx, ta.mono, tb.mono);
 			// `mono_mul` returns the null handle on errors, we propagate here.
 			if (mono.val == 0) {
-				free(terms);
+				arena_reset(ctx->scratch);
 				return null_ref;
 			}
 
@@ -222,7 +216,7 @@ ExprRef expr_mul(Context* ctx, ExprRef a, ExprRef b) {
 
 	ExprRef product = expr_intern(ctx, terms, nbr_term);
 
-	free(terms);
+	arena_reset(ctx->scratch);
 
 	return product;
 }

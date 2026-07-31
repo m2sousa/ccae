@@ -10,12 +10,14 @@
 static size_t test_arena_alignment(void);
 static size_t test_arena_large(void);
 static size_t test_arena_zero_size(void);
+static size_t test_arena_reset(void);
 
 size_t test_arena(void) {
 	size_t fails = 0;
 	fails += test_arena_alignment();
 	fails += test_arena_large();
 	fails += test_arena_zero_size();
+	fails += test_arena_reset();
 
 	return fails;
 }
@@ -89,6 +91,30 @@ static size_t test_arena_zero_size(void) {
 	CHECK(first != NULL);
 	CHECK(second != NULL);
 	CHECK(first != second);
+
+	arena_destroy(a);
+
+	return fails;
+}
+
+static size_t test_arena_reset(void) {
+	constexpr size_t BIG_SIZE = CCAE_ARENA_NODE_CAP + 1;
+	size_t fails = 0;
+
+	Arena* a = arena_create();
+	if (!a)
+		return 1;
+
+	arena_reset(a);
+
+	u64* first = arena_alloc(a, u64);
+	arena_reset(a);
+	CHECK(arena_alloc(a, u64) == first);
+
+	u8* big = arena_alloc_array(a, u8, BIG_SIZE);
+	CHECK(big != NULL);
+	arena_reset(a);
+	CHECK(arena_alloc(a, u64) == first);
 
 	arena_destroy(a);
 

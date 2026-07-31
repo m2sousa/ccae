@@ -1,11 +1,13 @@
 #include <stddef.h>
 
+#include <ccae/core/arena.h>
 #include <ccae/core/rational.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
+#include <ccae/types.h>
 
 #include "t_utils.h"
 
@@ -15,6 +17,7 @@ static size_t test_expr_add(void);
 static size_t test_expr_scale(void);
 static size_t test_expr_cancel(void);
 static size_t test_expr_mul(void);
+static size_t test_expr_scratch_reset(void);
 
 size_t test_expr(void) {
 	size_t fails = 0;
@@ -24,6 +27,7 @@ size_t test_expr(void) {
 	fails += test_expr_scale();
 	fails += test_expr_cancel();
 	fails += test_expr_mul();
+	fails += test_expr_scratch_reset();
 
 	return fails;
 }
@@ -257,6 +261,31 @@ static size_t test_expr_mul(void) {
 	CHECK(expr_mul(ctx, x_plus_y, x_minus_y).val == x2_minus_y2.val);
 	CHECK(expr_mul(ctx, x_minus_y, x_plus_y).val == x2_minus_y2.val);
 	CHECK(expr_mul(ctx, x_plus_y, zero).val == zero.val);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_expr_scratch_reset(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	u64* first = arena_alloc(ctx->scratch, u64);
+	arena_reset(ctx->scratch);
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
+	ExprRef just_x = expr_intern(ctx, (Term[]){{rat_from_int(1), mono_x}}, 1);
+
+	ExprRef square = expr_mul(ctx, just_x, just_x);
+	CHECK(square.val != 0);
+
+	CHECK(arena_alloc(ctx->scratch, u64) == first);
 
 	ctx_destroy(ctx);
 

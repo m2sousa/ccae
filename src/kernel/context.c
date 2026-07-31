@@ -67,6 +67,14 @@ Context* ctx_create(void) {
 		return NULL;
 	}
 
+	Arena* scratch = arena_create();
+	if (!scratch) {
+		sp_destroy(sp);
+		arena_destroy(arena);
+		free(ctx);
+		return NULL;
+	}
+
 	init_bundles(ctx, arena);
 	init_symbols(ctx, arena);
 	init_factors(ctx, arena);
@@ -74,6 +82,7 @@ Context* ctx_create(void) {
 	init_exprs(ctx, arena);
 
 	ctx->perm = arena;
+	ctx->scratch = scratch;
 	ctx->sp = sp;
 
 	err_clear(&ctx->err);
@@ -84,6 +93,7 @@ Context* ctx_create(void) {
 void ctx_destroy(Context* ctx) {
 	sp_destroy(ctx->sp);
 	arena_destroy(ctx->perm);
+	arena_destroy(ctx->scratch);
 
 	free(ctx);
 }

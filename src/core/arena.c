@@ -100,6 +100,23 @@ void* arena_zalloc_(Arena* a, size_t size, size_t alignment) {
 	return p;
 }
 
+void arena_reset(Arena* a) {
+	if (!a->head)
+		return;
+
+	ArenaNode* node = a->head->next;
+
+	while (node) {
+		ArenaNode* next = node->next;
+		free(node);
+		node = next;
+	}
+
+	a->head->next = NULL;
+	a->head->used = 0;
+	a->current = a->head;
+}
+
 void arena_destroy(Arena* a) {
 	while (a->head) {
 		ArenaNode* node = a->head;

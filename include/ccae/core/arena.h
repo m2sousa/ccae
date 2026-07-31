@@ -12,6 +12,12 @@ typedef struct Arena Arena;
 [[nodiscard]] Arena* arena_create(void);
 void arena_destroy(Arena* a);
 
+/* Frees every allocation of `a` at once and keeps its first node for reuse.
+ *
+ * Example:
+ *		`arena_reset(ctx->scratch);` */
+void arena_reset(Arena* a);
+
 /* Allocates `size` bytes aligned to `alignment`, not zeroed. `alignment` is a
  * power of two up to `alignof(max_align_t)`, else dies. Returns `NULL` on
  * failed allocation.

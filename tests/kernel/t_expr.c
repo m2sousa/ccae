@@ -14,6 +14,7 @@ static size_t test_expr_collect(void);
 static size_t test_expr_add(void);
 static size_t test_expr_scale(void);
 static size_t test_expr_cancel(void);
+static size_t test_expr_mul(void);
 
 size_t test_expr(void) {
 	size_t fails = 0;
@@ -22,6 +23,7 @@ size_t test_expr(void) {
 	fails += test_expr_add();
 	fails += test_expr_scale();
 	fails += test_expr_cancel();
+	fails += test_expr_mul();
 
 	return fails;
 }
@@ -216,6 +218,45 @@ static size_t test_expr_cancel(void) {
 	ExprRef difference = expr_add(ctx, a_plus_b, expr_neg(ctx, b_plus_a));
 
 	CHECK(difference.val == expr_intern(ctx, NULL, 0).val);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_expr_mul(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef y = symbol_declare_homog(ctx, "y", 0);
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
+	FacRef y_two = factor_intern(ctx, y, rat_from_int(2));
+
+	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
+	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
+	MonoRef mono_x2 = mono_intern(ctx, (FacRef[]){x_two}, 1);
+	MonoRef mono_y2 = mono_intern(ctx, (FacRef[]){y_two}, 1);
+
+	Rational one = rat_from_int(1);
+	Rational minus_one = rat_from_int(-1);
+
+	ExprRef zero = expr_intern(ctx, NULL, 0);
+	ExprRef x_plus_y =
+		expr_intern(ctx, (Term[]){{one, mono_x}, {one, mono_y}}, 2);
+	ExprRef x_minus_y =
+		expr_intern(ctx, (Term[]){{one, mono_x}, {minus_one, mono_y}}, 2);
+	ExprRef x2_minus_y2 =
+		expr_intern(ctx, (Term[]){{one, mono_x2}, {minus_one, mono_y2}}, 2);
+
+	CHECK(expr_mul(ctx, x_plus_y, x_minus_y).val == x2_minus_y2.val);
+	CHECK(expr_mul(ctx, x_minus_y, x_plus_y).val == x2_minus_y2.val);
+	CHECK(expr_mul(ctx, x_plus_y, zero).val == zero.val);
 
 	ctx_destroy(ctx);
 

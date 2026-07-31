@@ -7,6 +7,7 @@
 #include <ccae/core/vec.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
+#include <ccae/kernel/monomial.h>
 
 static bool have_same_terms(const Expr* expr, const Term* terms,
 							size_t nbr_term) {
@@ -174,4 +175,54 @@ ExprRef expr_scale(Context* ctx, ExprRef e, Rational r) {
 
 ExprRef expr_neg(Context* ctx, ExprRef e) {
 	return expr_scale(ctx, e, rat_from_int(-1));
+}
+
+ExprRef expr_mul(Context* ctx, ExprRef a, ExprRef b) {
+	ExprRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (a.val == 0 || a.val >= ctx->exprs.length || b.val == 0 ||
+		b.val >= ctx->exprs.length)
+		die("CCAE (expr_mul): expression handle out of range.");
+
+	Expr expr_a = vec_at(ctx->exprs, a.val);
+	Expr expr_b = vec_at(ctx->exprs, b.val);
+	size_t nbr_term = expr_a.nbr_term * expr_b.nbr_term;
+
+	if (nbr_term == 0)
+		return expr_intern(ctx, NULL, 0);
+
+	// FIXME: This malloc goes against the introduction of the arena I've done.
+	// An arena must be used for temporary work when it has been proved to work.
+	Term* terms = malloc(nbr_term * sizeof(Term));
+	if (!terms)
+		die("CCAE (expr_mul): out of memory.");
+
+	size_t nbr_filled = 0;
+
+	for (size_t i = 0; i < expr_a.nbr_term; ++i) {
+		for (size_t j = 0; j < expr_b.nbr_term; ++j) {
+			Term ta = expr_a.terms[i];
+			Term tb = expr_b.terms[j];
+
+			MonoRef mono = mono_mul(ctx, ta.mono, tb.mono);
+			// `mono_mul` returns the null handle on errors, we propagate here.
+			if (mono.val == 0) {
+				free(terms);
+				return null_ref;
+			}
+
+			terms[nbr_filled].coef = rat_mul(ta.coef, tb.coef);
+			terms[nbr_filled].mono = mono;
+			++nbr_filled;
+		}
+	}
+
+	ExprRef product = expr_intern(ctx, terms, nbr_term);
+
+	free(terms);
+
+	return product;
 }

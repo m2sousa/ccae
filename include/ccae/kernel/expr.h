@@ -47,4 +47,12 @@ typedef Vec(Expr) ExprVec;
  *		`ExprRef minus_e = expr_neg(ctx, e);` */
 [[nodiscard]] ExprRef expr_neg(Context* ctx, ExprRef e);
 
+/* Returns the handle of `a * b`.
+ * Fails like `mono_mul` when a product of monomials has too many factors
+ * (CCAE_MAX_FACTORS).
+ *
+ * Example:
+ *		`ExprRef square = expr_mul(ctx, x_plus_y, x_plus_y);` */
+[[nodiscard]] ExprRef expr_mul(Context* ctx, ExprRef a, ExprRef b);
+
 #endif

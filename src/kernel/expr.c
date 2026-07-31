@@ -139,3 +139,39 @@ ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b) {
 
 	return sum;
 }
+
+ExprRef expr_scale(Context* ctx, ExprRef e, Rational r) {
+	ExprRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (e.val == 0 || e.val >= ctx->exprs.length)
+		die("CCAE (expr_scale): expression handle out of range.");
+
+	Expr expr = vec_at(ctx->exprs, e.val);
+
+	if (expr.nbr_term == 0 || rat_is_zero(r))
+		return expr_intern(ctx, NULL, 0);
+
+	// FIXME: This malloc goes against the introduction of the arena I've done.
+	// An arena must be used for temporary work when it has been proved to work.
+	Term* terms = malloc(expr.nbr_term * sizeof(Term));
+	if (!terms)
+		die("CCAE (expr_scale): out of memory.");
+
+	for (size_t i = 0; i < expr.nbr_term; ++i) {
+		terms[i].coef = rat_mul(expr.terms[i].coef, r);
+		terms[i].mono = expr.terms[i].mono;
+	}
+
+	ExprRef scaled = expr_intern(ctx, terms, expr.nbr_term);
+
+	free(terms);
+
+	return scaled;
+}
+
+ExprRef expr_neg(Context* ctx, ExprRef e) {
+	return expr_scale(ctx, e, rat_from_int(-1));
+}

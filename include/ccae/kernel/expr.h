@@ -35,4 +35,16 @@ typedef Vec(Expr) ExprVec;
  *		`ExprRef sum = expr_add(ctx, x, y);` */
 [[nodiscard]] ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b);
 
+/* Returns the handle of `r * e`; 0 when `r` is 0.
+ *
+ * Example:
+ *		`ExprRef half_e = expr_scale(ctx, e, rat_new(1, 2));` */
+[[nodiscard]] ExprRef expr_scale(Context* ctx, ExprRef e, Rational r);
+
+/* Returns the handle of `-e`.
+ *
+ * Example:
+ *		`ExprRef minus_e = expr_neg(ctx, e);` */
+[[nodiscard]] ExprRef expr_neg(Context* ctx, ExprRef e);
+
 #endif

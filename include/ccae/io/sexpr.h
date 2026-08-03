@@ -1,0 +1,16 @@
+#ifndef CCAE_SEXPR_H
+#define CCAE_SEXPR_H
+
+#include <stddef.h>
+
+#include <ccae/kernel/fwd.h>
+
+/* Writes `e` as an s-expression into `buf`.
+ * Dies on a bad handle.
+ *
+ * Example:
+ *		`print_sexpr(ctx, e, buf, sizeof(buf));` gives
+ *		"(+ (* 2 x) (^ p -1/2))" */
+void print_sexpr(const Context* ctx, ExprRef e, char* buf, size_t size);
+
+#endif

@@ -17,6 +17,7 @@
 	X(monomial)                                                                \
 	X(expr)                                                                    \
 	X(print)                                                                   \
+	X(sexpr)                                                                   \
 	X(dbm24)
 
 // Holy f*ck, that's my first (useful) X-Macro !

@@ -15,6 +15,10 @@ static size_t test_sexpr_print_single(void);
 static size_t test_sexpr_print_products(void);
 static size_t test_sexpr_print_sums(void);
 static size_t test_sexpr_print_truncate(void);
+static size_t test_sexpr_read_atoms(void);
+static size_t test_sexpr_read_collect(void);
+static size_t test_sexpr_round_trip(void);
+static size_t test_sexpr_read_errors(void);
 
 size_t test_sexpr(void) {
 	size_t fails = 0;
@@ -22,6 +26,10 @@ size_t test_sexpr(void) {
 	fails += test_sexpr_print_products();
 	fails += test_sexpr_print_sums();
 	fails += test_sexpr_print_truncate();
+	fails += test_sexpr_read_atoms();
+	fails += test_sexpr_read_collect();
+	fails += test_sexpr_round_trip();
+	fails += test_sexpr_read_errors();
 
 	return fails;
 }
@@ -148,6 +156,156 @@ static size_t test_sexpr_print_truncate(void) {
 	char buf[5];
 	print_sexpr(ctx, x_plus_y, buf, sizeof(buf));
 	CHECK(strcmp(buf, "(+ x") == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+// Tells whether `text` reads back as the same handle as `expected`.
+static bool reads_as(Context* ctx, const char* text, ExprRef expected) {
+	ExprRef e = read_sexpr(ctx, text);
+
+	return e.val != 0 && e.val == expected.val;
+}
+
+// Tells whether `text` is exactly the output of printing as s-expr.
+static bool round_trips(Context* ctx, const char* text) {
+	ExprRef e = read_sexpr(ctx, text);
+
+	return e.val != 0 && prints_as(ctx, e, text);
+}
+
+// Tells whether reading `text` fails with an error, then clears it.
+static bool fails_to_read(Context* ctx, const char* text) {
+	ExprRef e = read_sexpr(ctx, text);
+	bool failed = e.val == 0 && !ctx_ok(ctx);
+
+	ctx_clear_err(ctx);
+
+	return failed;
+}
+
+static size_t test_sexpr_read_atoms(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
+
+	MonoRef mono_one = mono_intern(ctx, NULL, 0);
+	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
+	MonoRef mono_p = mono_intern(ctx, (FacRef[]){p_minus_half}, 1);
+
+	ExprRef zero = expr_intern(ctx, NULL, 0);
+	ExprRef minus_half =
+		expr_intern(ctx, (Term[]){{rat_new(-1, 2), mono_one}}, 1);
+	ExprRef just_x = expr_intern(ctx, (Term[]){{rat_from_int(1), mono_x}}, 1);
+	ExprRef root = expr_intern(ctx, (Term[]){{rat_from_int(1), mono_p}}, 1);
+
+	CHECK(reads_as(ctx, "0", zero));
+	CHECK(reads_as(ctx, "-1/2", minus_half));
+	CHECK(reads_as(ctx, "-2/4", minus_half));
+	CHECK(reads_as(ctx, "x", just_x));
+	CHECK(reads_as(ctx, "(^ p -1/2)", root));
+	CHECK(reads_as(ctx, "  (^\tp\n-1/2 )  ", root));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_read_collect(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef y = symbol_declare_homog(ctx, "y", 0);
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+
+	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
+	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
+
+	Rational one = rat_from_int(1);
+	Rational two = rat_from_int(2);
+
+	ExprRef zero = expr_intern(ctx, NULL, 0);
+	ExprRef x_plus_y =
+		expr_intern(ctx, (Term[]){{one, mono_x}, {one, mono_y}}, 2);
+	ExprRef two_x_plus_y =
+		expr_intern(ctx, (Term[]){{two, mono_x}, {one, mono_y}}, 2);
+	ExprRef square = expr_mul(ctx, x_plus_y, x_plus_y);
+
+	CHECK(reads_as(ctx, "(+ x y x)", two_x_plus_y));
+	CHECK(reads_as(ctx, "(+ x (* -1 x))", zero));
+	CHECK(reads_as(ctx, "(* (+ x y) (+ x y))", square));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_round_trip(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	CHECK(symbol_declare_homog(ctx, "x", 0).val != 0);
+	CHECK(symbol_declare_homog(ctx, "y", 0).val != 0);
+	CHECK(symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO).val != 0);
+
+	CHECK(round_trips(ctx, "0"));
+	CHECK(round_trips(ctx, "-1/2"));
+	CHECK(round_trips(ctx, "x"));
+	CHECK(round_trips(ctx, "(* -1 x)"));
+	CHECK(round_trips(ctx, "(^ p -1/2)"));
+	CHECK(round_trips(ctx, "(* 1/2 x (^ p -3/2))"));
+	CHECK(round_trips(ctx, "(+ (* 2 x) y)"));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_read_errors(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	CHECK(symbol_declare_homog(ctx, "x", 0).val != 0);
+	CHECK(symbol_declare_homog(ctx, "y", 0).val != 0);
+
+	CHECK(fails_to_read(ctx, ""));
+	CHECK(fails_to_read(ctx, ")"));
+	CHECK(fails_to_read(ctx, "z"));
+	CHECK(fails_to_read(ctx, "x y"));
+	CHECK(fails_to_read(ctx, "(+ x"));
+	CHECK(fails_to_read(ctx, "()"));
+	CHECK(fails_to_read(ctx, "(- x y)"));
+	CHECK(fails_to_read(ctx, "1/0"));
+	CHECK(fails_to_read(ctx, "99999999999999999999"));
+	CHECK(fails_to_read(ctx, "(^ (+ x y) 2)"));
+	CHECK(fails_to_read(ctx, "(^ x y)"));
+	CHECK(fails_to_read(ctx, "(^ x 2 3)"));
+
+	// `x` is not F_POSITIVE: must be rejected (cannot take square root),
+	// therefore no handle should exist.
+	CHECK(fails_to_read(ctx, "(^ x 1/2)"));
+
+	CHECK(ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

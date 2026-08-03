@@ -13,4 +13,12 @@
  *		"(+ (* 2 x) (^ p -1/2))" */
 void print_sexpr(const Context* ctx, ExprRef e, char* buf, size_t size);
 
+/* Returns the handle of the expression written in `text`, in the form
+ * of an s-expression.
+ * Sets `ctx->err` and returns the null handle on bad input.
+ *
+ * Example:
+ *		`ExprRef e = read_sexpr(ctx, "(* (+ x y) (+ x y))");` */
+[[nodiscard]] ExprRef read_sexpr(Context* ctx, const char* text);
+
 #endif

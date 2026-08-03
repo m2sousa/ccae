@@ -6,16 +6,11 @@
 #include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
 #include <ccae/io/print.h>
+#include <ccae/io/print_buffer.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/symbol.h>
 #include <ccae/types.h>
-
-typedef struct {
-	char* buf;
-	size_t size;
-	size_t length;
-} PrintBuffer;
 
 static const struct {
 	SymFlag flag;
@@ -28,7 +23,7 @@ static const struct {
 	{F_ZERO_MODE_FREE, "ZERO_MODE_FREE"},
 };
 
-static void put_char(PrintBuffer* out, char c) {
+void put_char(PrintBuffer* out, char c) {
 	// Keep the last byte for '\0'.
 	if (out->length + 1 >= out->size)
 		return;
@@ -37,12 +32,12 @@ static void put_char(PrintBuffer* out, char c) {
 	out->buf[out->length] = '\0';
 }
 
-static void put_string(PrintBuffer* out, const char* s) {
+void put_string(PrintBuffer* out, const char* s) {
 	for (; *s; ++s)
 		put_char(out, *s);
 }
 
-static void put_u64(PrintBuffer* out, u64 n) {
+void put_u64(PrintBuffer* out, u64 n) {
 	constexpr size_t MAX_DIGITS = 20;
 
 	char digits[MAX_DIGITS];

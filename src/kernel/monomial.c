@@ -286,6 +286,44 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 	return mr;
 }
 
+static u16 count_dummies(const Context* ctx, const Monomial* mono) {
+	u16 nbr_dummy = 0;
+
+	for (u64 i = 0; i < mono->nbr_fac; ++i) {
+		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
+		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+
+		for (u8 k = 0; k < nbr_slot; ++k) {
+			Index index = fac.indices[k];
+
+			if (index.kind == IDX_DUMMY && index.id >= nbr_dummy)
+				nbr_dummy = (u16)(index.id + 1);
+		}
+	}
+
+	return nbr_dummy;
+}
+
+static FacRef shift_dummies(Context* ctx, FacRef f, u16 id_shift) {
+	Factor fac = vec_at(ctx->factors, f.val);
+	u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+
+	if (nbr_slot == 0 || id_shift == 0)
+		return f;
+
+	for (u8 k = 0; k < nbr_slot; ++k) {
+		if (fac.indices[k].kind == IDX_DUMMY)
+			fac.indices[k].id = (u16)(fac.indices[k].id + id_shift);
+	}
+
+	FacRef shifted = factor_intern(ctx, fac.head, fac.power, fac.indices);
+
+	if (shifted.val == 0)
+		die("CCAE (mono_mul): id shifted factor rejected.");
+
+	return shifted;
+}
+
 MonoRef mono_mul(Context* ctx, MonoRef a, MonoRef b) {
 	MonoRef null_ref = {.val = 0};
 
@@ -311,8 +349,10 @@ MonoRef mono_mul(Context* ctx, MonoRef a, MonoRef b) {
 	for (u64 i = 0; i < mono_a.nbr_fac; ++i)
 		facs[nbr_fac++] = mono_a.fac[i];
 
+	u16 id_shift = count_dummies(ctx, &mono_a);
+
 	for (u64 i = 0; i < mono_b.nbr_fac; ++i)
-		facs[nbr_fac++] = mono_b.fac[i];
+		facs[nbr_fac++] = shift_dummies(ctx, mono_b.fac[i], id_shift);
 
 	return mono_intern(ctx, facs, nbr_fac);
 }

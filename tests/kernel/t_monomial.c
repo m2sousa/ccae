@@ -20,6 +20,7 @@ static size_t test_monomial_tensors_stay(void);
 static size_t test_monomial_mul(void);
 static size_t test_monomial_dummies(void);
 static size_t test_monomial_bad_dummies(void);
+static size_t test_monomial_mul_dummies(void);
 
 size_t test_monomial(void) {
 	size_t fails = 0;
@@ -31,6 +32,7 @@ size_t test_monomial(void) {
 	fails += test_monomial_mul();
 	fails += test_monomial_dummies();
 	fails += test_monomial_bad_dummies();
+	fails += test_monomial_mul_dummies();
 
 	return fails;
 }
@@ -224,7 +226,7 @@ static size_t test_monomial_mul(void) {
 }
 
 static bool declare_triads(Context* ctx, SymRef* dE, SymRef* dK) {
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
 	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
 	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
 	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
@@ -331,6 +333,53 @@ static size_t test_monomial_bad_dummies(void) {
 		  0);
 	CHECK(!ctx_ok(ctx));
 	ctx_clear_err(ctx);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_monomial_mul_dummies(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_triads(ctx, &dE, &dK));
+
+	Index a = {IDX_FREE, 'a'};
+	Index b = {IDX_FREE, 'b'};
+	Index c = {IDX_FREE, 'c'};
+	Index d = {IDX_FREE, 'd'};
+	Index i = {IDX_FREE, 'i'};
+	Index j = {IDX_FREE, 'j'};
+
+	FacRef dE_ai = with_indices(ctx, dE, a, i);
+	FacRef dK_ib = with_indices(ctx, dK, i, b);
+	FacRef dE_ci = with_indices(ctx, dE, c, i);
+	FacRef dK_id = with_indices(ctx, dK, i, d);
+	FacRef dE_cj = with_indices(ctx, dE, c, j);
+	FacRef dK_jd = with_indices(ctx, dK, j, d);
+	FacRef dE_bj = with_indices(ctx, dE, b, j);
+	FacRef dK_jc = with_indices(ctx, dK, j, c);
+
+	MonoRef left = mono_intern(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	MonoRef same_dummy = mono_intern(ctx, (FacRef[]){dE_ci, dK_id}, 2);
+	MonoRef contracting = mono_intern(ctx, (FacRef[]){dE_bj, dK_jc}, 2);
+
+	MonoRef apart = mono_intern(ctx, (FacRef[]){dE_ai, dK_ib, dE_cj, dK_jd}, 4);
+	CHECK(apart.val != 0);
+	CHECK(mono_mul(ctx, left, same_dummy).val == apart.val);
+
+	MonoRef chain = mono_intern(ctx, (FacRef[]){dE_ai, dK_ib, dE_bj, dK_jc}, 4);
+	CHECK(chain.val != 0);
+	CHECK(mono_mul(ctx, left, contracting).val == chain.val);
+
+	CHECK(mono_mul(ctx, left, left).val == 0);
+	CHECK(!ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

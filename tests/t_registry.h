@@ -13,6 +13,7 @@
 	X(context)                                                                 \
 	X(bundle)                                                                  \
 	X(symbol)                                                                  \
+	X(index)                                                                   \
 	X(factor)                                                                  \
 	X(monomial)                                                                \
 	X(expr)                                                                    \

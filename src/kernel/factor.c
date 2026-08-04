@@ -5,6 +5,7 @@
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/factor.h>
+#include <ccae/kernel/index.h>
 #include <ccae/kernel/symbol.h>
 
 static bool reject_factor(Context* ctx, const Symbol* sym,
@@ -62,7 +63,7 @@ static bool check_indices(Context* ctx, const Symbol* sym,
 
 static bool have_same_indices(const Index* a, const Index* b, u8 nbr_slot) {
 	for (u8 k = 0; k < nbr_slot; ++k) {
-		if (a[k].kind != b[k].kind || a[k].id != b[k].id)
+		if (!index_equal(a[k], b[k]))
 			return false;
 	}
 

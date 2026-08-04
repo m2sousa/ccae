@@ -17,8 +17,10 @@ typedef Vec(Monomial) MonomialVec;
 
 /* Returns the handle of the product of the `nbr_fac` factors at `facs`, in any
  * order, storing it the first time.
- * Sets `ctx->err` and returns the null handle on more than `CCAE_MAX_FACTORS`
- * factors.
+ * An index used twice, once up and once down in the same bundle, becomes a
+ * dummy, numbered from 0.
+ * Sets `ctx->err` and returns the null handle on more
+ * than `CCAE_MAX_FACTORS` factors, or on an index repeated any other way.
  *
  * Example:
  *		`MonoRef m = mono_intern(ctx, (FacRef[]){sqrt_p, dK}, 2);` */

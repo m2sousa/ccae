@@ -6,8 +6,15 @@
 #include <ccae/core/vec.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/factor.h>
+#include <ccae/kernel/index.h>
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
+
+typedef struct {
+	Index index;
+	BundleRef bundle;
+	SlotPos pos;
+} Occurrence;
 
 static bool factor_comes_before(const Context* ctx, FacRef a, FacRef b) {
 	u32 head_a = vec_at(ctx->factors, a.val).head.val;
@@ -75,6 +82,150 @@ static bool merge_powers(Context* ctx, Monomial* mono) {
 	return true;
 }
 
+static bool reject_index(Context* ctx, Index index, const char* problem) {
+	if (index.kind == IDX_FREE)
+		err_set(&ctx->err, CCAE_INVALID_ARG, "monomial: index '%c' %s.",
+				(char)index.id, problem);
+	else
+		err_set(&ctx->err, CCAE_INVALID_ARG, "monomial: dummy %u %s.",
+				(unsigned)index.id, problem);
+
+	return false;
+}
+
+// Constructs the occurences: index and its associated bundle & symbol.
+// Returns the number of occurences.
+static size_t build_occurrences(const Context* ctx, const Monomial* mono,
+								Occurrence* out) {
+	size_t nbr_occ = 0;
+
+	for (u64 i = 0; i < mono->nbr_fac; ++i) {
+		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
+		const Symbol* sym = &vec_at(ctx->symbols, fac.head.val);
+
+		for (u8 k = 0; k < sym->nbr_slot; ++k) {
+			Occurrence occ = {.index = fac.indices[k],
+							  .bundle = sym->slot_bundle[k],
+							  .pos = sym->slot_pos[k]};
+			out[nbr_occ++] = occ;
+		}
+	}
+
+	return nbr_occ;
+}
+
+// Returns how many occurrences hold the same index as `occ[i]`.
+// `partner` gets the last one other than `i`, or `i` if there is none.
+static size_t count_uses(size_t* partner, const Occurrence* occ, size_t nbr_occ,
+						 size_t i) {
+	size_t nbr_use = 0;
+	*partner = i;
+
+	for (size_t j = 0; j < nbr_occ; ++j) {
+		if (!index_equal(occ[j].index, occ[i].index))
+			continue;
+
+		++nbr_use;
+		if (j != i)
+			*partner = j;
+	}
+
+	return nbr_use;
+}
+
+static bool check_repeated_indices(Context* ctx, const Occurrence* occ,
+								   size_t nbr_occ) {
+	for (size_t i = 0; i < nbr_occ; ++i) {
+		size_t partner = i;
+		size_t nbr_use = count_uses(&partner, occ, nbr_occ, i);
+
+		if (nbr_use > 2)
+			return reject_index(ctx, occ[i].index, "used more than twice");
+
+		if (nbr_use == 1) {
+			if (occ[i].index.kind == IDX_DUMMY)
+				return reject_index(ctx, occ[i].index, "used once");
+			continue;
+		}
+
+		if (occ[partner].pos == occ[i].pos)
+			return reject_index(ctx, occ[i].index,
+								"used twice in the same position");
+
+		if (occ[partner].bundle.val != occ[i].bundle.val)
+			return reject_index(ctx, occ[i].index, "used in two bundles");
+	}
+
+	return true;
+}
+
+// Writes into `out` the index of each occurrence. Dummies are marked
+// in the process.
+static void build_indices_with_dummies(Index* out, const Occurrence* occ,
+									   size_t nbr_occ) {
+	u16 nbr_dummy = 0;
+
+	for (size_t i = 0; i < nbr_occ; ++i) {
+		size_t partner = i;
+		size_t nbr_use = count_uses(&partner, occ, nbr_occ, i);
+
+		if (nbr_use == 1) {
+			out[i] = occ[i].index;
+		} else if (partner < i) {
+			// We have already written the partner of the pair, thus we copy.
+			out[i] = out[partner];
+		} else {
+			// First index from a pair, marks it as dummy.
+			Index dummy = {.kind = IDX_DUMMY, .id = nbr_dummy++};
+			out[i] = dummy;
+		}
+	}
+}
+
+// Replaces each tensor factor of `mono` by the same factor with its slice of
+// `indices_with_dummies`, laid out as `build_occurrences` lists them.
+static void rebuild_factors_with_dummies(Context* ctx, Monomial* mono,
+										 const Index* indices_with_dummies) {
+	size_t offset = 0;
+
+	for (u64 i = 0; i < mono->nbr_fac; ++i) {
+		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
+		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+
+		if (nbr_slot == 0)
+			continue;
+
+		FacRef rebuilt = factor_intern(ctx, fac.head, fac.power,
+									   &indices_with_dummies[offset]);
+
+		// The power and free indices were already accepted, and dummies are
+		// not checked: this cannot fail.
+		if (rebuilt.val == 0)
+			die("CCAE (mono_intern): rebuilt factor rejected.");
+
+		mono->fac[i] = rebuilt;
+		offset += nbr_slot;
+	}
+}
+
+// Numbers the dummies of `mono` from 0 in order of first appearance.
+// Fails on any other repeated index.
+static bool check_and_build_dummies(Context* ctx, Monomial* mono) {
+	constexpr size_t MAX_OCCURRENCES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
+
+	Occurrence occ[MAX_OCCURRENCES];
+	size_t nbr_occ = build_occurrences(ctx, mono, occ);
+
+	if (!check_repeated_indices(ctx, occ, nbr_occ))
+		return false;
+
+	Index indices_with_dummies[MAX_OCCURRENCES];
+	build_indices_with_dummies(indices_with_dummies, occ, nbr_occ);
+	rebuild_factors_with_dummies(ctx, mono, indices_with_dummies);
+
+	return true;
+}
+
 static bool have_same_factors(const Monomial* a, const Monomial* b) {
 	if (a->nbr_fac != b->nbr_fac)
 		return false;
@@ -112,6 +263,13 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	if (!merge_powers(ctx, &mono))
 		return null_ref;
+
+	if (!check_and_build_dummies(ctx, &mono))
+		return null_ref;
+
+	// Building up the dummies changes the factor `rebuild_factors_with_dummies`
+	// therefore we sort the handles again.
+	sort_factors(ctx, &mono);
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 1; i < ctx->monomials.length; ++i) {

@@ -63,7 +63,7 @@ static bool merge_powers(Context* ctx, Monomial* mono) {
 		if (rat_is_zero(power))
 			continue;
 
-		FacRef merged = factor_intern(ctx, first.head, power);
+		FacRef merged = factor_intern(ctx, first.head, power, NULL);
 		if (merged.val == 0)
 			return false;
 

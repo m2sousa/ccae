@@ -40,7 +40,7 @@ static size_t test_expr_handles(void) {
 		return 1;
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 
 	MonoRef mono_one = mono_intern(ctx, NULL, 0);
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
@@ -71,8 +71,8 @@ static size_t test_expr_collect(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
@@ -126,8 +126,8 @@ static size_t test_expr_add(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
@@ -166,8 +166,8 @@ static size_t test_expr_scale(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
@@ -207,8 +207,8 @@ static size_t test_expr_cancel(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	Rational one = rat_from_int(1);
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
@@ -237,10 +237,10 @@ static size_t test_expr_mul(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
-	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
-	FacRef y_two = factor_intern(ctx, y, rat_from_int(2));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2), NULL);
+	FacRef y_two = factor_intern(ctx, y, rat_from_int(2), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
@@ -278,7 +278,7 @@ static size_t test_expr_scratch_reset(void) {
 	arena_reset(ctx->scratch);
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	ExprRef just_x = expr_intern(ctx, (Term[]){{rat_from_int(1), mono_x}}, 1);
 

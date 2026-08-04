@@ -40,8 +40,8 @@ static size_t test_monomial_order(void) {
 	SymRef c = symbol_declare_homog(ctx, "c", 0);
 	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE);
 
-	FacRef c_one = factor_intern(ctx, c, rat_from_int(1));
-	FacRef sqrt_p = factor_intern(ctx, p, rat_new(1, 2));
+	FacRef c_one = factor_intern(ctx, c, rat_from_int(1), NULL);
+	FacRef sqrt_p = factor_intern(ctx, p, rat_new(1, 2), NULL);
 
 	MonoRef c_p = mono_intern(ctx, (FacRef[]){c_one, sqrt_p}, 2);
 	MonoRef p_c = mono_intern(ctx, (FacRef[]){sqrt_p, c_one}, 2);
@@ -66,7 +66,7 @@ static size_t test_monomial_one(void) {
 		return 1;
 
 	SymRef c = symbol_declare_homog(ctx, "c", 0);
-	FacRef c_one = factor_intern(ctx, c, rat_from_int(1));
+	FacRef c_one = factor_intern(ctx, c, rat_from_int(1), NULL);
 
 	MonoRef one = mono_intern(ctx, NULL, 0);
 	MonoRef just_c = mono_intern(ctx, (FacRef[]){c_one}, 1);
@@ -89,7 +89,8 @@ static size_t test_monomial_too_many(void) {
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
 	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", 0);
-	FacRef dE_one = factor_intern(ctx, dE, rat_from_int(1));
+	FacRef dE_one =
+		factor_intern(ctx, dE, rat_from_int(1), (Index[]){{IDX_FREE, 'a'}});
 	CHECK(spatial.val != 0 && dE_one.val != 0);
 
 	FacRef facs[CCAE_MAX_FACTORS + 1];
@@ -123,11 +124,11 @@ static size_t test_monomial_merge(void) {
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
 	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
 
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
-	FacRef p_half = factor_intern(ctx, p, rat_new(1, 2));
-	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
+	FacRef p_half = factor_intern(ctx, p, rat_new(1, 2), NULL);
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2), NULL);
 
 	MonoRef x_x = mono_intern(ctx, (FacRef[]){x_one, x_one}, 2);
 	CHECK(x_x.val == mono_intern(ctx, (FacRef[]){x_two}, 1).val);
@@ -154,15 +155,16 @@ static size_t test_monomial_tensors_stay(void) {
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
 	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", 0);
-	FacRef dE_one = factor_intern(ctx, dE, rat_from_int(1));
+	FacRef dE_one =
+		factor_intern(ctx, dE, rat_from_int(1), (Index[]){{IDX_FREE, 'a'}});
 	CHECK(spatial.val != 0 && dE_one.val != 0);
 
 	MonoRef dE_dE = mono_intern(ctx, (FacRef[]){dE_one, dE_one}, 2);
 	CHECK(vec_at(ctx->monomials, dE_dE.val).nbr_fac == 2);
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2), NULL);
 
 	MonoRef x_dE_x = mono_intern(ctx, (FacRef[]){x_one, dE_one, x_one}, 3);
 	CHECK(x_dE_x.val == mono_intern(ctx, (FacRef[]){x_two, dE_one}, 2).val);
@@ -183,11 +185,11 @@ static size_t test_monomial_mul(void) {
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
 	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
 
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef x_two = factor_intern(ctx, x, rat_from_int(2));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
-	FacRef p_half = factor_intern(ctx, p, rat_new(1, 2));
-	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
+	FacRef p_half = factor_intern(ctx, p, rat_new(1, 2), NULL);
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2), NULL);
 
 	MonoRef one = mono_intern(ctx, NULL, 0);
 	MonoRef just_x = mono_intern(ctx, (FacRef[]){x_one}, 1);

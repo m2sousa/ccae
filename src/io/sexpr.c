@@ -249,7 +249,8 @@ static ExprRef read_atom(Reader* r) {
 		return null_ref;
 	}
 
-	return expr_of_factor(r->ctx, factor_intern(r->ctx, sym, rat_from_int(1)));
+	return expr_of_factor(r->ctx,
+						  factor_intern(r->ctx, sym, rat_from_int(1), NULL));
 }
 
 static ExprRef read_power(Reader* r) {
@@ -292,7 +293,7 @@ static ExprRef read_power(Reader* r) {
 
 	++r->pos;
 
-	return expr_of_factor(r->ctx, factor_intern(r->ctx, sym, power));
+	return expr_of_factor(r->ctx, factor_intern(r->ctx, sym, power, NULL));
 }
 
 static ExprRef read_operands(Reader* r, char op) {

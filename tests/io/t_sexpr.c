@@ -50,7 +50,7 @@ static size_t test_sexpr_print_single(void) {
 		return 1;
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 
 	MonoRef mono_one = mono_intern(ctx, NULL, 0);
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
@@ -80,9 +80,9 @@ static size_t test_sexpr_print_products(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
-	FacRef p_minus_three_halves = factor_intern(ctx, p, rat_new(-3, 2));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2), NULL);
+	FacRef p_minus_three_halves = factor_intern(ctx, p, rat_new(-3, 2), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_p = mono_intern(ctx, (FacRef[]){p_minus_half}, 1);
@@ -111,8 +111,8 @@ static size_t test_sexpr_print_sums(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	MonoRef mono_one = mono_intern(ctx, NULL, 0);
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
@@ -143,8 +143,8 @@ static size_t test_sexpr_print_truncate(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);
@@ -195,8 +195,8 @@ static size_t test_sexpr_read_atoms(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef p_minus_half = factor_intern(ctx, p, rat_new(-1, 2), NULL);
 
 	MonoRef mono_one = mono_intern(ctx, NULL, 0);
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
@@ -229,8 +229,8 @@ static size_t test_sexpr_read_collect(void) {
 
 	SymRef x = symbol_declare_homog(ctx, "x", 0);
 	SymRef y = symbol_declare_homog(ctx, "y", 0);
-	FacRef x_one = factor_intern(ctx, x, rat_from_int(1));
-	FacRef y_one = factor_intern(ctx, y, rat_from_int(1));
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef y_one = factor_intern(ctx, y, rat_from_int(1), NULL);
 
 	MonoRef mono_x = mono_intern(ctx, (FacRef[]){x_one}, 1);
 	MonoRef mono_y = mono_intern(ctx, (FacRef[]){y_one}, 1);

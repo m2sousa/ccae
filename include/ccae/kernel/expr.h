@@ -23,13 +23,15 @@ typedef Vec(Expr) ExprVec;
 /* Returns the handle of the sum of the `nbr_term` terms at `terms`, in any
  * order, storing it the first time. Terms with the same monomial are
  * collected, and zero coefficients dropped: no term gives 0.
+ * Sets `ctx->err` and returns the null handle when two terms have different
+ * free indices.
  * Sides: Sorts and collects `terms` in place.
  *
  * Example:
  *		`ExprRef e = expr_intern(ctx, (Term[]){{half, x}, {half, x}}, 2);` */
 [[nodiscard]] ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term);
 
-/* Returns the handle of `a + b`.
+/* Returns the handle of `a + b`. Fails like `expr_intern`.
  *
  * Example:
  *		`ExprRef sum = expr_add(ctx, x, y);` */

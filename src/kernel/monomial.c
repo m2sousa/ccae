@@ -356,3 +356,56 @@ MonoRef mono_mul(Context* ctx, MonoRef a, MonoRef b) {
 
 	return mono_intern(ctx, facs, nbr_fac);
 }
+
+static size_t keep_free_occurrences(Occurrence* occ, size_t nbr_occ) {
+	size_t nbr_kept = 0;
+
+	for (size_t i = 0; i < nbr_occ; ++i) {
+		if (occ[i].index.kind == IDX_FREE)
+			occ[nbr_kept++] = occ[i];
+	}
+
+	return nbr_kept;
+}
+
+static bool holds_occurrence(const Occurrence* occ, size_t nbr_occ,
+							 Occurrence wanted) {
+	for (size_t i = 0; i < nbr_occ; ++i) {
+		if (index_equal(occ[i].index, wanted.index) && occ[i].pos == wanted.pos)
+			return true;
+	}
+
+	return false;
+}
+
+bool mono_have_same_free_indices(const Context* ctx, MonoRef a, MonoRef b) {
+	constexpr size_t MAX_OCCURRENCES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
+
+	if (a.val == 0 || a.val >= ctx->monomials.length || b.val == 0 ||
+		b.val >= ctx->monomials.length)
+		die("CCAE (mono_have_same_free_indices): monomial handle out of "
+			"range.");
+
+	Occurrence occ_a[MAX_OCCURRENCES];
+	Occurrence occ_b[MAX_OCCURRENCES];
+
+	size_t nbr_a =
+		build_occurrences(ctx, &vec_at(ctx->monomials, a.val), occ_a);
+	size_t nbr_b =
+		build_occurrences(ctx, &vec_at(ctx->monomials, b.val), occ_b);
+
+	nbr_a = keep_free_occurrences(occ_a, nbr_a);
+	nbr_b = keep_free_occurrences(occ_b, nbr_b);
+
+	if (nbr_a != nbr_b)
+		return false;
+
+	// By construction, a free index appears **at most** once in a monomial, so
+	// equal counts and every index of `a` found in `b` mean the same set.
+	for (size_t i = 0; i < nbr_a; ++i) {
+		if (!holds_occurrence(occ_b, nbr_b, occ_a[i]))
+			return false;
+	}
+
+	return true;
+}

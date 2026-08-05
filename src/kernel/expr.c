@@ -97,6 +97,14 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 	if (nbr_term == 0)
 		return find_or_store(ctx, NULL, 0);
 
+	for (size_t i = 1; i < nbr_term; ++i) {
+		if (!mono_have_same_free_indices(ctx, terms[0].mono, terms[i].mono)) {
+			err_set(&ctx->err, CCAE_INVALID_ARG,
+					"expression: terms with different free indices.");
+			return null_ref;
+		}
+	}
+
 	qsort(terms, nbr_term, sizeof(Term), compare_by_monomial);
 
 	size_t nbr_kept = merge_terms(terms, nbr_term);

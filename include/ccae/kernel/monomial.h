@@ -34,4 +34,11 @@ typedef Vec(Monomial) MonomialVec;
  *		`MonoRef m = mono_mul(ctx, sqrt_p, dK);` */
 [[nodiscard]] MonoRef mono_mul(Context* ctx, MonoRef a, MonoRef b);
 
+/* Returns whether two monomials have the same free indices, by name and
+ * position.
+ *
+ * Example:
+ *		`mono_have_same_free_indices(ctx, x_up_a, y_up_a)` is true. */
+bool mono_have_same_free_indices(const Context* ctx, MonoRef a, MonoRef b);
+
 #endif

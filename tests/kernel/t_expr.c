@@ -2,9 +2,11 @@
 
 #include <ccae/core/arena.h>
 #include <ccae/core/rational.h>
+#include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
+#include <ccae/kernel/index.h>
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 #include <ccae/types.h>
@@ -18,6 +20,7 @@ static size_t test_expr_scale(void);
 static size_t test_expr_cancel(void);
 static size_t test_expr_mul(void);
 static size_t test_expr_scratch_reset(void);
+static size_t test_expr_free_indices(void);
 
 size_t test_expr(void) {
 	size_t fails = 0;
@@ -28,6 +31,7 @@ size_t test_expr(void) {
 	fails += test_expr_cancel();
 	fails += test_expr_mul();
 	fails += test_expr_scratch_reset();
+	fails += test_expr_free_indices();
 
 	return fails;
 }
@@ -286,6 +290,53 @@ static size_t test_expr_scratch_reset(void) {
 	CHECK(square.val != 0);
 
 	CHECK(arena_alloc(ctx->scratch, u64) == first);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static ExprRef single_tensor(Context* ctx, SymRef head, u16 name) {
+	FacRef fac =
+		factor_intern(ctx, head, rat_from_int(1), (Index[]){{IDX_FREE, name}});
+	MonoRef mono = mono_intern(ctx, (FacRef[]){fac}, 1);
+
+	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
+}
+
+static size_t test_expr_free_indices(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", 0);
+	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "^a", 0);
+	SymRef Z = symbol_declare_tensor(ctx, "Z", SYM_FIELD, "_a", 0);
+	CHECK(spatial.val != 0 && ctx_ok(ctx));
+
+	ExprRef X_a = single_tensor(ctx, X, 'a');
+	ExprRef Y_a = single_tensor(ctx, Y, 'a');
+	ExprRef Y_b = single_tensor(ctx, Y, 'b');
+	ExprRef Z_a = single_tensor(ctx, Z, 'a');
+	ExprRef Z_b = single_tensor(ctx, Z, 'b');
+	CHECK(ctx_ok(ctx));
+
+	CHECK(expr_add(ctx, X_a, Y_a).val != 0);
+
+	ExprRef Y_b_Z_b = expr_mul(ctx, Y_b, Z_b);
+	CHECK(expr_add(ctx, X_a, expr_mul(ctx, X_a, Y_b_Z_b)).val != 0);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(expr_add(ctx, X_a, Z_a).val == 0);
+	CHECK(!ctx_ok(ctx));
+	ctx_clear_err(ctx);
+
+	CHECK(expr_add(ctx, X_a, Y_b).val == 0);
+	CHECK(!ctx_ok(ctx));
+	ctx_clear_err(ctx);
 
 	ctx_destroy(ctx);
 

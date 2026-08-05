@@ -225,7 +225,7 @@ static size_t test_monomial_mul(void) {
 	return fails;
 }
 
-static bool declare_triads(Context* ctx, SymRef* dE, SymRef* dK) {
+static bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
 	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
 	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
@@ -248,7 +248,7 @@ static size_t test_monomial_dummies(void) {
 
 	SymRef dE = {0};
 	SymRef dK = {0};
-	CHECK(declare_triads(ctx, &dE, &dK));
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	Index a = {IDX_FREE, 'a'};
 	Index b = {IDX_FREE, 'b'};
@@ -301,7 +301,7 @@ static size_t test_monomial_bad_dummies(void) {
 
 	SymRef dE = {0};
 	SymRef dK = {0};
-	CHECK(declare_triads(ctx, &dE, &dK));
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	Index a = {IDX_FREE, 'a'};
 	Index b = {IDX_FREE, 'b'};
@@ -348,7 +348,7 @@ static size_t test_monomial_mul_dummies(void) {
 
 	SymRef dE = {0};
 	SymRef dK = {0};
-	CHECK(declare_triads(ctx, &dE, &dK));
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	Index a = {IDX_FREE, 'a'};
 	Index b = {IDX_FREE, 'b'};

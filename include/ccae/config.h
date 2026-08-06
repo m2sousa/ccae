@@ -16,6 +16,10 @@ constexpr size_t CCAE_MAX_SLOT = 6;
 // Note that, the number of factor (Monomial->nbr_fac) at given time is a u64.
 constexpr size_t CCAE_MAX_FACTORS = 128;
 
+// The most indices a monomial can hold: one per slot of each factor.
+constexpr size_t CCAE_MAX_INDICES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
+constexpr size_t CCAE_MAX_DUMMIES = CCAE_MAX_INDICES / 2;
+
 // This is purely empiric, perf/alloc tests must be done at some point.
 constexpr size_t CCAE_ARENA_NODE_CAP = 4'194'304;
 

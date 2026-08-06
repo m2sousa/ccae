@@ -211,15 +211,13 @@ static void rebuild_factors_with_dummies(Context* ctx, Monomial* mono,
 // Numbers the dummies of `mono` from 0 in order of first appearance.
 // Fails on any other repeated index.
 static bool check_and_build_dummies(Context* ctx, Monomial* mono) {
-	constexpr size_t MAX_OCCURRENCES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
-
-	Occurrence occ[MAX_OCCURRENCES];
+	Occurrence occ[CCAE_MAX_INDICES];
 	size_t nbr_occ = build_occurrences(ctx, mono, occ);
 
 	if (!check_repeated_indices(ctx, occ, nbr_occ))
 		return false;
 
-	Index indices_with_dummies[MAX_OCCURRENCES];
+	Index indices_with_dummies[CCAE_MAX_INDICES];
 	build_indices_with_dummies(indices_with_dummies, occ, nbr_occ);
 	rebuild_factors_with_dummies(ctx, mono, indices_with_dummies);
 
@@ -379,15 +377,13 @@ static bool holds_occurrence(const Occurrence* occ, size_t nbr_occ,
 }
 
 bool mono_have_same_free_indices(const Context* ctx, MonoRef a, MonoRef b) {
-	constexpr size_t MAX_OCCURRENCES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
-
 	if (a.val == 0 || a.val >= ctx->monomials.length || b.val == 0 ||
 		b.val >= ctx->monomials.length)
 		die("CCAE (mono_have_same_free_indices): monomial handle out of "
 			"range.");
 
-	Occurrence occ_a[MAX_OCCURRENCES];
-	Occurrence occ_b[MAX_OCCURRENCES];
+	Occurrence occ_a[CCAE_MAX_INDICES];
+	Occurrence occ_b[CCAE_MAX_INDICES];
 
 	size_t nbr_a =
 		build_occurrences(ctx, &vec_at(ctx->monomials, a.val), occ_a);

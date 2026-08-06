@@ -22,6 +22,8 @@ static size_t test_sexpr_read_collect(void);
 static size_t test_sexpr_round_trip(void);
 static size_t test_sexpr_read_errors(void);
 static size_t test_sexpr_print_indices(void);
+static size_t test_sexpr_read_indices(void);
+static size_t test_sexpr_bad_indices(void);
 
 size_t test_sexpr(void) {
 	size_t fails = 0;
@@ -34,6 +36,8 @@ size_t test_sexpr(void) {
 	fails += test_sexpr_round_trip();
 	fails += test_sexpr_read_errors();
 	fails += test_sexpr_print_indices();
+	fails += test_sexpr_read_indices();
+	fails += test_sexpr_bad_indices();
 
 	return fails;
 }
@@ -372,6 +376,70 @@ static size_t test_sexpr_print_indices(void) {
 	CHECK(prints_as(ctx, by_j, "(* dE^a_$0 dK^$0_b)"));
 
 	CHECK(prints_as(ctx, i_taken, "(* dE^a_$0 dK^i_c dK^$0_b)"));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_read_indices(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+
+	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
+	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
+
+	ExprRef single = expr_of_factors(ctx, (FacRef[]){dE_ai}, 1);
+	ExprRef by_i = expr_of_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	CHECK(x.val != 0 && ctx_ok(ctx));
+
+	CHECK(reads_as(ctx, "dE^a_i", single));
+
+	// A name used up and down becomes a dummy, whatever the name.
+	CHECK(reads_as(ctx, "(* dE^a_i dK^i_b)", by_i));
+	CHECK(reads_as(ctx, "(* dE^a_k dK^k_b)", by_i));
+
+	CHECK(round_trips(ctx, "dE^a_i"));
+	CHECK(round_trips(ctx, "(* x dE^a_i)"));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_bad_indices(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+	CHECK(x.val != 0);
+
+	CHECK(fails_to_read(ctx, "dK"));
+	CHECK(fails_to_read(ctx, "dK^i"));
+	CHECK(fails_to_read(ctx, "dK^i_a_b"));
+	CHECK(fails_to_read(ctx, "dK_i^a"));
+	CHECK(fails_to_read(ctx, "dK^a_i"));
+	CHECK(fails_to_read(ctx, "dK^i_1"));
+	CHECK(fails_to_read(ctx, "x^a"));
+	CHECK(fails_to_read(ctx, "(^ dK^i_a 2)"));
+	CHECK(fails_to_read(ctx, "(* dK^i_a dK^i_b)"));
+	CHECK(fails_to_read(ctx, "(+ dK^i_a dK^j_a)"));
+
+	CHECK(ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

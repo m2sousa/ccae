@@ -2,6 +2,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <ccae/config.h>
 #include <ccae/core/error.h>
 #include <ccae/core/rational.h>
 #include <ccae/core/strpool.h>
@@ -163,7 +164,7 @@ static bool looks_like_number(const char* token, size_t length) {
 	return is_digit(token[0]);
 }
 
-static bool parse_digits(i64* out, const char** s, const char* end) {
+static bool read_digits(i64* out, const char** s, const char* end) {
 	if (*s == end || !is_digit(**s))
 		return false;
 
@@ -177,7 +178,7 @@ static bool parse_digits(i64* out, const char** s, const char* end) {
 	return true;
 }
 
-static bool parse_number(Rational* out, const char* token, size_t length) {
+static bool read_number(Rational* out, const char* token, size_t length) {
 	const char* s = token;
 	const char* end = token + length;
 	bool negative = false;
@@ -190,13 +191,13 @@ static bool parse_number(Rational* out, const char* token, size_t length) {
 	i64 num = 0;
 	i64 den = 1;
 
-	if (!parse_digits(&num, &s, end))
+	if (!read_digits(&num, &s, end))
 		return false;
 
 	if (s < end && *s == '/') {
 		++s;
 
-		if (!parse_digits(&den, &s, end) || den == 0)
+		if (!read_digits(&den, &s, end) || den == 0)
 			return false;
 	}
 
@@ -222,6 +223,79 @@ static SymRef find_symbol(const Context* ctx, const char* name, size_t length) {
 	SymRef null_ref = {.val = 0};
 
 	return null_ref;
+}
+
+static bool reject_indices(Context* ctx, const Symbol* head, const char* text,
+						   size_t length) {
+	err_set(&ctx->err, CCAE_INVALID_ARG,
+			"s-expression: bad indices '%.*s' for '%s'.", (int)length, text,
+			sp_get(ctx->sp, head->name));
+
+	return false;
+}
+
+static bool read_index(Index* out, const char** s, const char* end) {
+	if (*s == end || !is_letter(**s))
+		return false;
+
+	Index index = {.kind = IDX_FREE, .id = (u16) * *s};
+	*out = index;
+	++*s;
+
+	return true;
+}
+
+static bool read_indices(Index* out, Context* ctx, const Symbol* head,
+						 const char* text, size_t length) {
+	const char* s = text;
+	const char* end = text + length;
+
+	for (u8 k = 0; k < head->nbr_slot; ++k) {
+		char wanted_pos = head->slot_pos[k] == SLOT_UP ? '^' : '_';
+
+		if (s == end || *s != wanted_pos)
+			return reject_indices(ctx, head, text, length);
+
+		++s;
+
+		if (!read_index(&out[k], &s, end))
+			return reject_indices(ctx, head, text, length);
+	}
+
+	if (s != end)
+		return reject_indices(ctx, head, text, length);
+
+	return true;
+}
+
+static FacRef read_factor(Reader* r, const char* token, size_t length,
+						  Rational power) {
+	FacRef null_ref = {.val = 0};
+
+	size_t name_length = 0;
+
+	while (name_length < length && token[name_length] != '^' &&
+		   token[name_length] != '_')
+		++name_length;
+
+	SymRef sym = find_symbol(r->ctx, token, name_length);
+
+	if (sym.val == 0) {
+		err_set(&r->ctx->err, CCAE_INVALID_ARG,
+				"s-expression: unknown symbol '%.*s'.", (int)name_length,
+				token);
+		return null_ref;
+	}
+
+	Symbol head = vec_at(r->ctx->symbols, sym.val);
+	Index indices[CCAE_MAX_SLOT];
+
+	if (!read_indices(indices, r->ctx, &head, token + name_length,
+					  length - name_length))
+		return null_ref;
+
+	return factor_intern(r->ctx, sym, power,
+						 head.nbr_slot > 0 ? indices : NULL);
 }
 
 static ExprRef expr_of_rational(Context* ctx, Rational coef) {
@@ -250,7 +324,7 @@ static ExprRef read_atom(Reader* r) {
 	if (looks_like_number(token, length)) {
 		Rational value;
 
-		if (!parse_number(&value, token, length)) {
+		if (!read_number(&value, token, length)) {
 			err_set(&r->ctx->err, CCAE_INVALID_ARG,
 					"s-expression: bad number '%.*s'.", (int)length, token);
 			return null_ref;
@@ -259,16 +333,8 @@ static ExprRef read_atom(Reader* r) {
 		return expr_of_rational(r->ctx, value);
 	}
 
-	SymRef sym = find_symbol(r->ctx, token, length);
-
-	if (sym.val == 0) {
-		err_set(&r->ctx->err, CCAE_INVALID_ARG,
-				"s-expression: unknown symbol '%.*s'.", (int)length, token);
-		return null_ref;
-	}
-
 	return expr_of_factor(r->ctx,
-						  factor_intern(r->ctx, sym, rat_from_int(1), NULL));
+						  read_factor(r, token, length, rat_from_int(1)));
 }
 
 static ExprRef read_power(Reader* r) {
@@ -278,12 +344,10 @@ static ExprRef read_power(Reader* r) {
 
 	const char* base = NULL;
 	size_t base_length = token_length(&base, r);
-	SymRef sym = find_symbol(r->ctx, base, base_length);
 
-	if (sym.val == 0) {
+	if (base_length == 0) {
 		err_set(&r->ctx->err, CCAE_INVALID_ARG,
-				"s-expression: '^' needs a declared symbol, got '%.*s'.",
-				(int)base_length, base);
+				"s-expression: '^' needs a symbol.");
 		return null_ref;
 	}
 
@@ -294,7 +358,7 @@ static ExprRef read_power(Reader* r) {
 	Rational power;
 
 	if (!looks_like_number(exponent, exponent_length) ||
-		!parse_number(&power, exponent, exponent_length)) {
+		!read_number(&power, exponent, exponent_length)) {
 		err_set(&r->ctx->err, CCAE_INVALID_ARG,
 				"s-expression: '^' needs a number, got '%.*s'.",
 				(int)exponent_length, exponent);
@@ -311,7 +375,7 @@ static ExprRef read_power(Reader* r) {
 
 	++r->pos;
 
-	return expr_of_factor(r->ctx, factor_intern(r->ctx, sym, power, NULL));
+	return expr_of_factor(r->ctx, read_factor(r, base, base_length, power));
 }
 
 static ExprRef read_operands(Reader* r, char op) {

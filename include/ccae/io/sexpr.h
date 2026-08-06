@@ -18,7 +18,8 @@ void print_sexpr(const Context* ctx, ExprRef e, char* buf, size_t size);
  * Sets `ctx->err` and returns the null handle on bad input.
  *
  * Example:
- *		`ExprRef e = read_sexpr(ctx, "(* (+ x y) (+ x y))");` */
+ *		`ExprRef e = read_sexpr(ctx, "(* (+ x y) (+ x y))");`
+ *		`ExprRef e = read_sexpr(ctx, "(* dE^a_i dK^i_b)");` */
 [[nodiscard]] ExprRef read_sexpr(Context* ctx, const char* text);
 
 #endif

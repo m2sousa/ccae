@@ -3,9 +3,11 @@
 
 #include <ccae/core/rational.h>
 #include <ccae/io/sexpr.h>
+#include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
+#include <ccae/kernel/index.h>
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
@@ -19,6 +21,7 @@ static size_t test_sexpr_read_atoms(void);
 static size_t test_sexpr_read_collect(void);
 static size_t test_sexpr_round_trip(void);
 static size_t test_sexpr_read_errors(void);
+static size_t test_sexpr_print_indices(void);
 
 size_t test_sexpr(void) {
 	size_t fails = 0;
@@ -30,6 +33,7 @@ size_t test_sexpr(void) {
 	fails += test_sexpr_read_collect();
 	fails += test_sexpr_round_trip();
 	fails += test_sexpr_read_errors();
+	fails += test_sexpr_print_indices();
 
 	return fails;
 }
@@ -306,6 +310,68 @@ static size_t test_sexpr_read_errors(void) {
 	CHECK(fails_to_read(ctx, "(^ x 1/2)"));
 
 	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
+	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
+	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+
+	return spatial.val != 0 && internal.val != 0 && ctx_ok(ctx);
+}
+
+static FacRef with_indices(Context* ctx, SymRef head, char first, char second) {
+	Index indices[] = {{IDX_FREE, (u16)first}, {IDX_FREE, (u16)second}};
+
+	return factor_intern(ctx, head, rat_from_int(1), indices);
+}
+
+static ExprRef expr_of_factors(Context* ctx, const FacRef* facs,
+							   size_t nbr_fac) {
+	MonoRef mono = mono_intern(ctx, facs, nbr_fac);
+
+	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
+}
+
+static size_t test_sexpr_print_indices(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef x = symbol_declare_homog(ctx, "x", 0);
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
+	FacRef dE_aj = with_indices(ctx, dE, 'a', 'j');
+	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
+	FacRef dK_jb = with_indices(ctx, dK, 'j', 'b');
+	FacRef dK_ic = with_indices(ctx, dK, 'i', 'c');
+
+	ExprRef single = expr_of_factors(ctx, (FacRef[]){dE_ai}, 1);
+	ExprRef with_scalar = expr_of_factors(ctx, (FacRef[]){x_one, dE_ai}, 2);
+	ExprRef by_i = expr_of_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	ExprRef by_j = expr_of_factors(ctx, (FacRef[]){dE_aj, dK_jb}, 2);
+	ExprRef i_taken = expr_of_factors(ctx, (FacRef[]){dE_aj, dK_jb, dK_ic}, 3);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(prints_as(ctx, single, "dE^a_i"));
+	CHECK(prints_as(ctx, with_scalar, "(* x dE^a_i)"));
+
+	// A dummy prints as its number, whatever name it was built with.
+	CHECK(prints_as(ctx, by_i, "(* dE^a_$0 dK^$0_b)"));
+	CHECK(prints_as(ctx, by_j, "(* dE^a_$0 dK^$0_b)"));
+
+	CHECK(prints_as(ctx, i_taken, "(* dE^a_$0 dK^i_c dK^$0_b)"));
 
 	ctx_destroy(ctx);
 

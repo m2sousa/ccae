@@ -12,6 +12,7 @@
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
+#include <ccae/kernel/index.h>
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 #include <ccae/utils.h>
@@ -24,6 +25,21 @@ static void put_rational(PrintBuffer* out, Rational r) {
 	put_string(out, text);
 }
 
+static void put_indices_as_sexpr(PrintBuffer* out, const Symbol* head,
+								 const Index* indices) {
+	for (u8 k = 0; k < head->nbr_slot; ++k) {
+		put_char(out, head->slot_pos[k] == SLOT_UP ? '^' : '_');
+
+		if (indices[k].kind == IDX_FREE) {
+			put_char(out, (char)indices[k].id);
+			continue;
+		}
+
+		put_char(out, '$');
+		put_u64(out, indices[k].id);
+	}
+}
+
 static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 								FacRef f) {
 	Factor factor = vec_at(ctx->factors, f.val);
@@ -32,11 +48,13 @@ static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 
 	if (rat_is_one(factor.power)) {
 		put_string(out, name);
+		put_indices_as_sexpr(out, head, factor.indices);
 		return;
 	}
 
 	put_string(out, "(^ ");
 	put_string(out, name);
+	put_indices_as_sexpr(out, head, factor.indices);
 	put_char(out, ' ');
 	put_rational(out, factor.power);
 	put_char(out, ')');

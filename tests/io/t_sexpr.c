@@ -24,6 +24,8 @@ static size_t test_sexpr_read_errors(void);
 static size_t test_sexpr_print_indices(void);
 static size_t test_sexpr_read_indices(void);
 static size_t test_sexpr_bad_indices(void);
+static size_t test_sexpr_read_dummies(void);
+static size_t test_sexpr_bad_dummies(void);
 
 size_t test_sexpr(void) {
 	size_t fails = 0;
@@ -38,6 +40,8 @@ size_t test_sexpr(void) {
 	fails += test_sexpr_print_indices();
 	fails += test_sexpr_read_indices();
 	fails += test_sexpr_bad_indices();
+	fails += test_sexpr_read_dummies();
+	fails += test_sexpr_bad_dummies();
 
 	return fails;
 }
@@ -335,8 +339,8 @@ static FacRef with_indices(Context* ctx, SymRef head, char first, char second) {
 	return factor_intern(ctx, head, rat_from_int(1), indices);
 }
 
-static ExprRef expr_of_factors(Context* ctx, const FacRef* facs,
-							   size_t nbr_fac) {
+static ExprRef build_expr_from_factors(Context* ctx, const FacRef* facs,
+									   size_t nbr_fac) {
 	MonoRef mono = mono_intern(ctx, facs, nbr_fac);
 
 	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
@@ -361,11 +365,13 @@ static size_t test_sexpr_print_indices(void) {
 	FacRef dK_jb = with_indices(ctx, dK, 'j', 'b');
 	FacRef dK_ic = with_indices(ctx, dK, 'i', 'c');
 
-	ExprRef single = expr_of_factors(ctx, (FacRef[]){dE_ai}, 1);
-	ExprRef with_scalar = expr_of_factors(ctx, (FacRef[]){x_one, dE_ai}, 2);
-	ExprRef by_i = expr_of_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
-	ExprRef by_j = expr_of_factors(ctx, (FacRef[]){dE_aj, dK_jb}, 2);
-	ExprRef i_taken = expr_of_factors(ctx, (FacRef[]){dE_aj, dK_jb, dK_ic}, 3);
+	ExprRef single = build_expr_from_factors(ctx, (FacRef[]){dE_ai}, 1);
+	ExprRef with_scalar =
+		build_expr_from_factors(ctx, (FacRef[]){x_one, dE_ai}, 2);
+	ExprRef by_i = build_expr_from_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	ExprRef by_j = build_expr_from_factors(ctx, (FacRef[]){dE_aj, dK_jb}, 2);
+	ExprRef i_taken =
+		build_expr_from_factors(ctx, (FacRef[]){dE_aj, dK_jb, dK_ic}, 3);
 	CHECK(ctx_ok(ctx));
 
 	CHECK(prints_as(ctx, single, "dE^a_i"));
@@ -397,8 +403,8 @@ static size_t test_sexpr_read_indices(void) {
 	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
 	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
 
-	ExprRef single = expr_of_factors(ctx, (FacRef[]){dE_ai}, 1);
-	ExprRef by_i = expr_of_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	ExprRef single = build_expr_from_factors(ctx, (FacRef[]){dE_ai}, 1);
+	ExprRef by_i = build_expr_from_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
 	CHECK(x.val != 0 && ctx_ok(ctx));
 
 	CHECK(reads_as(ctx, "dE^a_i", single));
@@ -438,6 +444,77 @@ static size_t test_sexpr_bad_indices(void) {
 	CHECK(fails_to_read(ctx, "(^ dK^i_a 2)"));
 	CHECK(fails_to_read(ctx, "(* dK^i_a dK^i_b)"));
 	CHECK(fails_to_read(ctx, "(+ dK^i_a dK^j_a)"));
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_read_dummies(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+
+	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
+	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
+
+	ExprRef by_i = build_expr_from_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(reads_as(ctx, "(* dE^a_$0 dK^$0_b)", by_i));
+
+	// Dummies are renumbered from 0.
+	CHECK(reads_as(ctx, "(* dE^a_$5 dK^$5_b)", by_i));
+
+	CHECK(round_trips(ctx, "(* dE^a_$0 dK^$0_b)"));
+	CHECK(round_trips(ctx, "(* 2 dE^a_$0 dK^$0_b)"));
+	CHECK(round_trips(ctx, "(* dE^a_$0 dK^$0_b dK^i_c)"));
+
+	// dE^a_i dE^b_j dK^i_b: `i` and `b` are both dummies.
+	FacRef dE_bj = with_indices(ctx, dE, 'b', 'j');
+	ExprRef two_dummies =
+		build_expr_from_factors(ctx, (FacRef[]){dE_ai, dE_bj, dK_ib}, 3);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(prints_as(ctx, two_dummies, "(* dE^a_$0 dE^$1_j dK^$0_$1)"));
+	CHECK(reads_as(ctx, "(* dE^a_$0 dE^$1_j dK^$0_$1)", two_dummies));
+
+	// Numbered the other way round, they are renumbered by first appearance.
+	CHECK(reads_as(ctx, "(* dE^a_$1 dE^$0_j dK^$1_$0)", two_dummies));
+
+	CHECK(round_trips(ctx, "(* dE^a_$0 dE^$1_j dK^$0_$1)"));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_bad_dummies(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+
+	CHECK(fails_to_read(ctx, "dE^a_$0"));
+	CHECK(fails_to_read(ctx, "dE^a_$"));
+	CHECK(fails_to_read(ctx, "dE^a_$x"));
+	CHECK(fails_to_read(ctx, "dE^a_$99999"));
+
+	// The halves of `$0` are in two monomials.
+	CHECK(fails_to_read(ctx, "(* dE^a_$0 (+ dK^$0_b))"));
 
 	CHECK(ctx_ok(ctx));
 

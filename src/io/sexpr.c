@@ -1,5 +1,6 @@
 #include <stdckdint.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <ccae/config.h>
@@ -235,10 +236,29 @@ static bool reject_indices(Context* ctx, const Symbol* head, const char* text,
 }
 
 static bool read_index(Index* out, const char** s, const char* end) {
-	if (*s == end || !is_letter(**s))
+	if (*s == end)
 		return false;
 
-	Index index = {.kind = IDX_FREE, .id = (u16) * *s};
+	if (**s == '$') {
+		++*s;
+
+		i64 id = 0;
+
+		if (!read_digits(&id, s, end) || id > UINT16_MAX)
+			return false;
+
+		Index dummy = {.kind = IDX_DUMMY, .id = (u16)id};
+		*out = dummy;
+
+		return true;
+	}
+
+	char name = **s;
+
+	if (!is_letter(name))
+		return false;
+
+	Index index = {.kind = IDX_FREE, .id = (u16)name};
 	*out = index;
 	++*s;
 
@@ -298,21 +318,26 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 						 head.nbr_slot > 0 ? indices : NULL);
 }
 
-static ExprRef expr_of_rational(Context* ctx, Rational coef) {
+static ExprRef build_expr_from_rational(Context* ctx, Rational coef) {
 	MonoRef one = mono_intern(ctx, NULL, 0);
 
 	return expr_intern(ctx, (Term[]){{coef, one}}, 1);
 }
 
-static ExprRef expr_of_factor(Context* ctx, FacRef f) {
+static ExprRef build_expr_from_factors(Context* ctx, const FacRef* facs,
+									   size_t nbr_fac) {
+	MonoRef mono = mono_intern(ctx, facs, nbr_fac);
+
+	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
+}
+
+static ExprRef build_expr_from_factor(Context* ctx, FacRef f) {
 	ExprRef null_ref = {.val = 0};
 
 	if (f.val == 0)
 		return null_ref;
 
-	MonoRef mono = mono_intern(ctx, &f, 1);
-
-	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
+	return build_expr_from_factors(ctx, &f, 1);
 }
 
 static ExprRef read_atom(Reader* r) {
@@ -330,15 +355,15 @@ static ExprRef read_atom(Reader* r) {
 			return null_ref;
 		}
 
-		return expr_of_rational(r->ctx, value);
+		return build_expr_from_rational(r->ctx, value);
 	}
 
-	return expr_of_factor(r->ctx,
-						  read_factor(r, token, length, rat_from_int(1)));
+	return build_expr_from_factor(
+		r->ctx, read_factor(r, token, length, rat_from_int(1)));
 }
 
-static ExprRef read_power(Reader* r) {
-	ExprRef null_ref = {.val = 0};
+static FacRef read_power(Reader* r) {
+	FacRef null_ref = {.val = 0};
 
 	skip_spaces(r);
 
@@ -375,21 +400,64 @@ static ExprRef read_power(Reader* r) {
 
 	++r->pos;
 
-	return expr_of_factor(r->ctx, read_factor(r, base, base_length, power));
+	return read_factor(r, base, base_length, power);
+}
+
+static bool next_is_factor(const Reader* r) {
+	Reader peek = *r;
+	bool is_list = *peek.pos == '(';
+
+	if (is_list) {
+		peek.pos += 1;
+		skip_spaces(&peek);
+	}
+
+	const char* token = NULL;
+	size_t length = token_length(&token, &peek);
+
+	if (is_list)
+		return length == 1 && *token == '^';
+
+	return !looks_like_number(token, length);
+}
+
+static FacRef read_factor_operand(Reader* r) {
+	if (*r->pos == '(') {
+		r->pos += 1;
+		skip_spaces(r);
+		r->pos += 1;
+
+		return read_power(r);
+	}
+
+	const char* token = NULL;
+	size_t length = token_length(&token, r);
+
+	return read_factor(r, token, length, rat_from_int(1));
 }
 
 static ExprRef read_operands(Reader* r, char op) {
 	ExprRef null_ref = {.val = 0};
 
 	// Start to zero for sums, one for mult.
-	ExprRef result = op == '+' ? expr_intern(r->ctx, NULL, 0)
-							   : expr_of_rational(r->ctx, rat_from_int(1));
+	ExprRef result = op == '+'
+						 ? expr_intern(r->ctx, NULL, 0)
+						 : build_expr_from_rational(r->ctx, rat_from_int(1));
+
+	FacRef facs[CCAE_MAX_FACTORS];
+	size_t nbr_fac = 0;
 
 	while (true) {
 		skip_spaces(r);
 
 		if (*r->pos == ')') {
 			r->pos += 1;
+
+			if (op == '*')
+				result =
+					expr_mul(r->ctx, result,
+							 build_expr_from_factors(r->ctx, facs, nbr_fac));
+
 			return result;
 		}
 
@@ -397,6 +465,22 @@ static ExprRef read_operands(Reader* r, char op) {
 			err_set(&r->ctx->err, CCAE_INVALID_ARG,
 					"s-expression: missing ')'.");
 			return null_ref;
+		}
+
+		if (op == '*' && next_is_factor(r)) {
+			if (nbr_fac == CCAE_MAX_FACTORS) {
+				err_set(&r->ctx->err, CCAE_INVALID_ARG,
+						"s-expression: more than %zu factors.",
+						CCAE_MAX_FACTORS);
+				return null_ref;
+			}
+
+			facs[nbr_fac] = read_factor_operand(r);
+			if (facs[nbr_fac].val == 0)
+				return null_ref;
+
+			++nbr_fac;
+			continue;
 		}
 
 		ExprRef operand = read_expr(r);
@@ -423,7 +507,7 @@ static ExprRef read_list(Reader* r) {
 		return read_operands(r, *op);
 
 	if (length == 1 && *op == '^')
-		return read_power(r);
+		return build_expr_from_factor(r->ctx, read_power(r));
 
 	err_set(&r->ctx->err, CCAE_INVALID_ARG,
 			"s-expression: unknown operator '%.*s'.", (int)length, op);

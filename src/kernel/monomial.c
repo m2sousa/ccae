@@ -42,8 +42,8 @@ static void sort_factors(const Context* ctx, Monomial* mono) {
 }
 
 // Merge scalar factor (ex: x*x => x^2) by adding their power,
-// do nothing otherwise.
-static bool merge_powers(Context* ctx, Monomial* mono) {
+// do nothing otherwise. Might fail if a factor is rejected on interning.
+static bool check_and_merge_powers(Context* ctx, Monomial* mono) {
 	size_t nbr_kept = 0;
 	size_t i = 0;
 
@@ -259,7 +259,7 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	sort_factors(ctx, &mono);
 
-	if (!merge_powers(ctx, &mono))
+	if (!check_and_merge_powers(ctx, &mono))
 		return null_ref;
 
 	if (!check_and_build_dummies(ctx, &mono))

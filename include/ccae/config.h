@@ -10,6 +10,9 @@ constexpr size_t CCAE_VEC_BASE_CAP = 64;
 // here we are..
 constexpr size_t CCAE_MAX_SLOT = 6;
 
+// A clause of n slots takes n - 1 generators, and clauses share no slot.
+constexpr size_t CCAE_MAX_GENERATORS = CCAE_MAX_SLOT - 1;
+
 // This represent a fixed number of factor to compose a monomial.
 // Therefore going higher in perturbation order would probably mean increasing
 // this constant. Evidently, it results in more memory usage.

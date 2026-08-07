@@ -14,6 +14,7 @@
 	X(bundle)                                                                  \
 	X(symbol)                                                                  \
 	X(index)                                                                   \
+	X(symmetry)                                                                \
 	X(factor)                                                                  \
 	X(monomial)                                                                \
 	X(expr)                                                                    \

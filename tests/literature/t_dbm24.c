@@ -40,26 +40,28 @@ static size_t declare_dbm24(Context* ctx) {
 	CHECK(bundle_declare(ctx, "internal", "ijklmn").val != 0);
 
 	// Linking object, Levi-Civita and Kronecker tensors.
+	CHECK(with_latex(
+		ctx, symbol_declare_tensor(ctx, "triad", SYM_CONST, "^a_i", "", 0),
+		"\\delta"));
+	CHECK(with_latex(
+		ctx, symbol_declare_tensor(ctx, "cotriad", SYM_CONST, "_a^i", "", 0),
+		"\\delta"));
 	CHECK(with_latex(ctx,
-					 symbol_declare_tensor(ctx, "triad", SYM_CONST, "^a_i", 0),
+					 symbol_declare_tensor(ctx, "epsSpatial", SYM_CONST,
+										   "_a_b_c", "antisym(0,1,2)", 0),
+					 "\\epsilon"));
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "epsInternal", SYM_CONST,
+										   "_i_j_k", "antisym(0,1,2)", 0),
+					 "\\epsilon"));
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "kroneckerSpatial", SYM_CONST,
+										   "^a_b", "", 0),
 					 "\\delta"));
-	CHECK(with_latex(
-		ctx, symbol_declare_tensor(ctx, "cotriad", SYM_CONST, "_a^i", 0),
-		"\\delta"));
-	CHECK(with_latex(
-		ctx, symbol_declare_tensor(ctx, "epsSpatial", SYM_CONST, "_a_b_c", 0),
-		"\\epsilon"));
-	CHECK(with_latex(
-		ctx, symbol_declare_tensor(ctx, "epsInternal", SYM_CONST, "_i_j_k", 0),
-		"\\epsilon"));
-	CHECK(with_latex(
-		ctx,
-		symbol_declare_tensor(ctx, "kroneckerSpatial", SYM_CONST, "^a_b", 0),
-		"\\delta"));
-	CHECK(with_latex(
-		ctx,
-		symbol_declare_tensor(ctx, "kroneckerInternal", SYM_CONST, "^i_j", 0),
-		"\\delta"));
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "kroneckerInternal", SYM_CONST,
+										   "^i_j", "", 0),
+					 "\\delta"));
 
 	// Background: homogeneous variables, lapse and constants.
 	CHECK(with_latex(
@@ -73,7 +75,7 @@ static size_t declare_dbm24(Context* ctx) {
 	CHECK(with_latex(ctx, symbol_declare_homog(ctx, "pi0", F_PHASE_SPACE),
 					 "\\bm{\\pi}"));
 	CHECK(with_latex(ctx,
-					 symbol_declare_tensor(ctx, "N0", SYM_TESTFN, "",
+					 symbol_declare_tensor(ctx, "N0", SYM_TESTFN, "", "",
 										   F_CONST_IN_SPACE | F_NONZERO),
 					 "\\mathbf{N}"));
 	CHECK(with_latex(ctx,
@@ -87,32 +89,34 @@ static size_t declare_dbm24(Context* ctx) {
 					 "\\mathcal{V}"));
 
 	// Perturbations: fields and local test functions.
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "",
+										   F_ZERO_MODE_FREE),
+					 "\\delta E"));
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "",
+										   F_ZERO_MODE_FREE),
+					 "\\delta K"));
 	CHECK(with_latex(
 		ctx,
-		symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", F_ZERO_MODE_FREE),
-		"\\delta E"));
-	CHECK(with_latex(
-		ctx,
-		symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", F_ZERO_MODE_FREE),
-		"\\delta K"));
-	CHECK(with_latex(
-		ctx,
-		symbol_declare_tensor(ctx, "dphi", SYM_FIELD, "", F_ZERO_MODE_FREE),
+		symbol_declare_tensor(ctx, "dphi", SYM_FIELD, "", "", F_ZERO_MODE_FREE),
 		"\\delta\\phi"));
 	CHECK(with_latex(
-		ctx, symbol_declare_tensor(ctx, "dpi", SYM_FIELD, "", F_ZERO_MODE_FREE),
+		ctx,
+		symbol_declare_tensor(ctx, "dpi", SYM_FIELD, "", "", F_ZERO_MODE_FREE),
 		"\\delta\\pi"));
 	CHECK(with_latex(
-		ctx, symbol_declare_tensor(ctx, "dN", SYM_TESTFN, "", F_ZERO_MODE_FREE),
-		"\\delta N"));
-	CHECK(with_latex(
 		ctx,
-		symbol_declare_tensor(ctx, "dNs", SYM_TESTFN, "^a", F_ZERO_MODE_FREE),
+		symbol_declare_tensor(ctx, "dN", SYM_TESTFN, "", "", F_ZERO_MODE_FREE),
 		"\\delta N"));
-	CHECK(with_latex(
-		ctx,
-		symbol_declare_tensor(ctx, "dLam", SYM_TESTFN, "^i", F_ZERO_MODE_FREE),
-		"\\delta\\Lambda"));
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "dNs", SYM_TESTFN, "^a", "",
+										   F_ZERO_MODE_FREE),
+					 "\\delta N"));
+	CHECK(with_latex(ctx,
+					 symbol_declare_tensor(ctx, "dLam", SYM_TESTFN, "^i", "",
+										   F_ZERO_MODE_FREE),
+					 "\\delta\\Lambda"));
 
 	return fails;
 }

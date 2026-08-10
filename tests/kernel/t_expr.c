@@ -312,9 +312,9 @@ static size_t test_expr_free_indices(void) {
 		return 1;
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
-	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", 0);
-	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "^a", 0);
-	SymRef Z = symbol_declare_tensor(ctx, "Z", SYM_FIELD, "_a", 0);
+	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", "", 0);
+	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "^a", "", 0);
+	SymRef Z = symbol_declare_tensor(ctx, "Z", SYM_FIELD, "_a", "", 0);
 	CHECK(spatial.val != 0 && ctx_ok(ctx));
 
 	ExprRef X_a = single_tensor(ctx, X, 'a');

@@ -6,6 +6,7 @@
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/symbol.h>
+#include <ccae/kernel/symmetry.h>
 #include <ccae/types.h>
 
 #include "t_utils.h"
@@ -18,6 +19,7 @@ static size_t test_symbol_latex(void);
 static size_t test_symbol_homog(void);
 static size_t test_symbol_const(void);
 static size_t test_symbol_too_many_slots(void);
+static size_t test_symbol_symmetry(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -29,6 +31,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_homog();
 	fails += test_symbol_const();
 	fails += test_symbol_too_many_slots();
+	fails += test_symbol_symmetry();
 
 	return fails;
 }
@@ -57,7 +60,7 @@ static bool is_rejected(SymKind kind, const char* slotspec, u16 flags) {
 	if (!ctx)
 		return false;
 
-	SymRef sym = symbol_declare_tensor(ctx, "T", kind, slotspec, flags);
+	SymRef sym = symbol_declare_tensor(ctx, "T", kind, slotspec, "", flags);
 	bool rejected = sym.val == 0 && ctx->err.code == CCAE_INVALID_ARG &&
 					ctx->err.msg[0] != '\0';
 
@@ -73,10 +76,10 @@ static size_t test_symbol_declare(void) {
 	if (!ctx)
 		return 1;
 
-	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a",
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "",
 									  F_PHASE_SPACE | F_ZERO_MODE_FREE);
-	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c", 0);
-	SymRef dphi = symbol_declare_tensor(ctx, "dphi", SYM_FIELD, "",
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c", "", 0);
+	SymRef dphi = symbol_declare_tensor(ctx, "dphi", SYM_FIELD, "", "",
 										F_PHASE_SPACE | F_ZERO_MODE_FREE);
 
 	CHECK(ctx_ok(ctx));
@@ -107,8 +110,8 @@ static size_t test_symbol_duplicate(void) {
 	if (!ctx)
 		return 1;
 
-	SymRef first = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
-	SymRef second = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
+	SymRef first = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
+	SymRef second = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
 
 	CHECK(first.val != 0);
 	CHECK(second.val == 0);
@@ -154,7 +157,7 @@ static size_t test_symbol_latex(void) {
 	if (!ctx)
 		return 1;
 
-	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 
 	StringRef before = vec_at(ctx->symbols, dK.val).latex;
 	CHECK(strcmp(sp_get(ctx->sp, before), "") == 0);
@@ -188,7 +191,7 @@ static size_t test_symbol_homog(void) {
 	CHECK(symbol_declare_homog(ctx, "c", F_ZERO_MODE_FREE).val == 0);
 	ctx_clear_err(ctx);
 
-	CHECK(symbol_declare_tensor(ctx, "c", SYM_HOMOG, "", 0).val == 0);
+	CHECK(symbol_declare_tensor(ctx, "c", SYM_HOMOG, "", "", 0).val == 0);
 
 	ctx_destroy(ctx);
 
@@ -226,11 +229,58 @@ static size_t test_symbol_too_many_slots(void) {
 	BundleRef small = bundle_declare(ctx, "small", "xy");
 	CHECK(small.val != 0);
 
-	CHECK(symbol_declare_tensor(ctx, "A", SYM_FIELD, "_x_y", 0).val != 0);
+	CHECK(symbol_declare_tensor(ctx, "A", SYM_FIELD, "_x_y", "", 0).val != 0);
 
-	CHECK(symbol_declare_tensor(ctx, "B", SYM_FIELD, "_x_y_x", 0).val == 0);
+	CHECK(symbol_declare_tensor(ctx, "B", SYM_FIELD, "_x_y_x", "", 0).val == 0);
 	CHECK(strcmp(ctx->err.msg, "slotspec '_x_y_x': more slots than index "
 							   "names in bundle 'small'.") == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_symbol_symmetry(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_with_bundles();
+	if (!ctx)
+		return 1;
+
+	SymRef g =
+		symbol_declare_tensor(ctx, "g", SYM_FIELD, "_a_b", "sym(0,1)", 0);
+	CHECK(g.val != 0);
+
+	Generators g_gens = vec_at(ctx->symbols, g.val).generators;
+	CHECK(g_gens.nbr_generator == 1);
+	CHECK(signed_perm_equal(g_gens.generators[0], signed_perm_swap(0, 1, 1)));
+
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
+	CHECK(vec_at(ctx->symbols, dK.val).generators.nbr_generator == 0);
+
+	CHECK(ctx_ok(ctx));
+
+	// Slots 0 and 1 are of different bundles, then of different positions.
+	SymRef A =
+		symbol_declare_tensor(ctx, "A", SYM_FIELD, "^i_a", "sym(0,1)", 0);
+	CHECK(A.val == 0);
+	ctx_clear_err(ctx);
+
+	SymRef B =
+		symbol_declare_tensor(ctx, "B", SYM_FIELD, "^a_b", "sym(0,1)", 0);
+	CHECK(B.val == 0);
+	ctx_clear_err(ctx);
+
+	SymRef C = symbol_declare_tensor(ctx, "C", SYM_FIELD, "_a_b", "sym(0,", 0);
+	CHECK(C.val == 0);
+	ctx_clear_err(ctx);
+
+	// Slot 1 is internal, but the clause only exchanges slots 0 and 2.
+	SymRef D =
+		symbol_declare_tensor(ctx, "D", SYM_FIELD, "_a_i_b", "sym(0,2)", 0);
+	CHECK(D.val != 0);
+
+	CHECK(ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

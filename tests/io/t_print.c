@@ -42,9 +42,9 @@ static size_t test_print_tensor(void) {
 	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
 	CHECK(spatial.val != 0 && internal.val != 0);
 
-	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a",
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "",
 									  F_PHASE_SPACE | F_ZERO_MODE_FREE);
-	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_c_a_b", 0);
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_c_a_b", "", 0);
 
 	char buf[64];
 
@@ -108,8 +108,8 @@ static size_t test_print_latex(void) {
 	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
 	CHECK(spatial.val != 0 && internal.val != 0);
 
-	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
-	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c", 0);
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c", "", 0);
 	symbol_set_latex(ctx, dK, "\\delta K");
 
 	char buf[64];

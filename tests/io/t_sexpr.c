@@ -327,8 +327,8 @@ static size_t test_sexpr_read_errors(void) {
 static bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
 	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
-	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
-	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
+	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 
 	return spatial.val != 0 && internal.val != 0 && ctx_ok(ctx);
 }

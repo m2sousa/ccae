@@ -95,8 +95,8 @@ static size_t test_monomial_too_many(void) {
 		return 1;
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
-	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", 0);
-	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", 0);
+	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", "", 0);
+	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", "", 0);
 	FacRef dE_a =
 		factor_intern(ctx, dE, rat_from_int(1), (Index[]){{IDX_FREE, 'a'}});
 	CHECK(spatial.val != 0 && X.val != 0 && dE_a.val != 0);
@@ -167,7 +167,7 @@ static size_t test_monomial_tensors_stay(void) {
 		return 1;
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
-	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", 0);
+	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", "", 0);
 	FacRef dE_one =
 		factor_intern(ctx, dE, rat_from_int(1), (Index[]){{IDX_FREE, 'a'}});
 	FacRef dE_b =
@@ -228,8 +228,8 @@ static size_t test_monomial_mul(void) {
 static bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
 	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
-	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", 0);
-	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
+	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 
 	return spatial.val != 0 && internal.val != 0 && ctx_ok(ctx);
 }

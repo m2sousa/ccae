@@ -7,6 +7,7 @@
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/symbol.h>
+#include <ccae/kernel/symmetry.h>
 
 static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 	for (const char* s = slotspec; *s; s += 2) {
@@ -96,8 +97,35 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 	return true;
 }
 
+// A slot symmetry may only exchange slots of the same bundle and position.
+static bool check_symmetry_slots(Context* ctx, const char* name,
+								 const char* symmetry, const Symbol* sym) {
+	for (u8 g = 0; g < sym->generators.nbr_generator; ++g) {
+		SignedPerm perm = sym->generators.generators[g];
+
+		for (u8 k = 0; k < sym->nbr_slot; ++k) {
+			u8 target = perm.image[k];
+
+			bool same_bundle =
+				sym->slot_bundle[k].val == sym->slot_bundle[target].val;
+			bool same_pos = sym->slot_pos[k] == sym->slot_pos[target];
+
+			if (!same_bundle || !same_pos) {
+				err_set(&ctx->err, CCAE_INVALID_ARG,
+						"symbol '%s': symmetry '%s' exchanges slots of "
+						"different bundles or positions.",
+						name, symmetry);
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
-							 const char* slotspec, u16 flags) {
+							 const char* slotspec, const char* symmetry,
+							 u16 flags) {
 	SymRef null_ref = {.val = 0};
 
 	if (!*name) {
@@ -122,7 +150,14 @@ static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 
 	Symbol sym = {.name = name_ref, .kind = kind, .flags = flags};
 
-	if (!parse_slotspec(ctx, slotspec, &sym) || !check_flags(ctx, name, &sym))
+	if (!parse_slotspec(ctx, slotspec, &sym))
+		return null_ref;
+
+	if (!symmetry_check_and_read(&sym.generators, ctx, symmetry, sym.nbr_slot))
+		return null_ref;
+
+	if (!check_symmetry_slots(ctx, name, symmetry, &sym) ||
+		!check_flags(ctx, name, &sym))
 		return null_ref;
 
 	vec_append(ctx->perm, ctx->symbols, sym);
@@ -132,7 +167,8 @@ static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 }
 
 SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,
-							 const char* slotspec, u16 flags) {
+							 const char* slotspec, const char* symmetry,
+							 u16 flags) {
 	SymRef null_ref = {.val = 0};
 
 	if (!ctx_ok(ctx))
@@ -145,7 +181,7 @@ SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,
 		return null_ref;
 	}
 
-	return declare_symbol(ctx, name, kind, slotspec, flags);
+	return declare_symbol(ctx, name, kind, slotspec, symmetry, flags);
 }
 
 SymRef symbol_declare_homog(Context* ctx, const char* name, u16 flags) {
@@ -154,7 +190,7 @@ SymRef symbol_declare_homog(Context* ctx, const char* name, u16 flags) {
 	if (!ctx_ok(ctx))
 		return null_ref;
 
-	return declare_symbol(ctx, name, SYM_HOMOG, "",
+	return declare_symbol(ctx, name, SYM_HOMOG, "", "",
 						  (u16)(flags | F_CONST_IN_SPACE));
 }
 
@@ -164,7 +200,7 @@ SymRef symbol_declare_const(Context* ctx, const char* name, u16 flags) {
 	if (!ctx_ok(ctx))
 		return null_ref;
 
-	return declare_symbol(ctx, name, SYM_CONST, "", flags);
+	return declare_symbol(ctx, name, SYM_CONST, "", "", flags);
 }
 
 void symbol_set_latex(Context* ctx, SymRef sym, const char* latex) {

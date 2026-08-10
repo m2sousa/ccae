@@ -5,6 +5,7 @@
 #include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
 #include <ccae/kernel/fwd.h>
+#include <ccae/kernel/symmetry.h>
 #include <ccae/types.h>
 
 typedef enum : u8 {
@@ -35,21 +36,24 @@ typedef struct {
 	u8 nbr_slot;
 	BundleRef slot_bundle[CCAE_MAX_SLOT];
 	SlotPos slot_pos[CCAE_MAX_SLOT];
+	Generators generators;
 } Symbol;
 
 typedef Vec(Symbol) SymbolVec;
 
 /* Declares a `SYM_FIELD`, `SYM_TESTFN` or `SYM_CONST` symbol. `slotspec` has
  * a `^` (up) or `_` (down) and an index name per slot: "^i_a" is internal up,
- * spatial down; "" is a scalar. Sets `ctx->err` and returns the null handle on
- * another kind, a bad `slotspec` or flag, a duplicate name, or an earlier
- * error.
+ * spatial down; "" is a scalar. `symmetry` is a symmetry string; the slots of
+ * a clause must share the same bundle and position.
+ * Sets `ctx->err` and returns the null handle on another kind, a bad
+ * `slotspec`, `symmetry` or flag, a duplicate name, or an earlier error.
  *
  * Example:
- *		`SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);` */
+ *		`SymRef g = symbol_declare_tensor(ctx, "g", SYM_FIELD, "_a_b",
+ * "sym(0,1)", 0);` */
 [[nodiscard]] SymRef symbol_declare_tensor(Context* ctx, const char* name,
 										   SymKind kind, const char* slotspec,
-										   u16 flags);
+										   const char* symmetry, u16 flags);
 
 /* Declares a homogeneous scalar, constant **in space**: `F_CONST_IN_SPACE`
  * is added to `flags`. Fails like `symbol_declare_tensor`.

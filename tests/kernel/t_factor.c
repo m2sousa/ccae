@@ -90,7 +90,7 @@ static size_t test_factor_bad_powers(void) {
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
 	SymRef c = symbol_declare_homog(ctx, "c", 0);
-	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", 0);
+	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", "", 0);
 	CHECK(spatial.val != 0 && ctx_ok(ctx));
 
 	CHECK(factor_intern(ctx, c, rat_from_int(2), NULL).val != 0);
@@ -126,7 +126,7 @@ static size_t test_factor_indices(void) {
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
 	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
-	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 	CHECK(spatial.val != 0 && internal.val != 0 && ctx_ok(ctx));
 
 	Rational one = rat_from_int(1);
@@ -160,7 +160,7 @@ static size_t test_factor_bad_indices(void) {
 
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
 	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
-	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", 0);
+	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 	CHECK(spatial.val != 0 && internal.val != 0 && ctx_ok(ctx));
 
 	Rational one = rat_from_int(1);

@@ -9,7 +9,8 @@
 #include <ccae/kernel/symbol.h>
 #include <ccae/kernel/symmetry.h>
 
-static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
+static bool check_and_read_slotspec(Symbol* out, Context* ctx,
+									const char* slotspec) {
 	for (const char* s = slotspec; *s; s += 2) {
 		const char mark = s[0];
 		const char index_name = s[1];
@@ -29,7 +30,7 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 			return false;
 		}
 
-		if (sym->nbr_slot == CCAE_MAX_SLOT) {
+		if (out->nbr_slot == CCAE_MAX_SLOT) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"slotspec '%s': more than %zu slots.", slotspec,
 					CCAE_MAX_SLOT);
@@ -37,8 +38,8 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 		}
 
 		size_t nbr_slot_in_bundle = 0;
-		for (u8 prev = 0; prev < sym->nbr_slot; ++prev) {
-			if (sym->slot_bundle[prev].val == bundle_ref.val)
+		for (u8 prev = 0; prev < out->nbr_slot; ++prev) {
+			if (out->slot_bundle[prev].val == bundle_ref.val)
 				++nbr_slot_in_bundle;
 		}
 
@@ -51,9 +52,9 @@ static bool parse_slotspec(Context* ctx, const char* slotspec, Symbol* sym) {
 			return false;
 		}
 
-		sym->slot_bundle[sym->nbr_slot] = bundle_ref;
-		sym->slot_pos[sym->nbr_slot] = mark == '^' ? SLOT_UP : SLOT_DOWN;
-		++sym->nbr_slot;
+		out->slot_bundle[out->nbr_slot] = bundle_ref;
+		out->slot_pos[out->nbr_slot] = mark == '^' ? SLOT_UP : SLOT_DOWN;
+		++out->nbr_slot;
 	}
 
 	return true;
@@ -150,7 +151,7 @@ static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 
 	Symbol sym = {.name = name_ref, .kind = kind, .flags = flags};
 
-	if (!parse_slotspec(ctx, slotspec, &sym))
+	if (!check_and_read_slotspec(&sym, ctx, slotspec))
 		return null_ref;
 
 	if (!symmetry_check_and_read(&sym.generators, ctx, symmetry, sym.nbr_slot))

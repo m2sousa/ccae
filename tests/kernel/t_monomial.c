@@ -10,6 +10,7 @@
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
+#include "t_kernel_utils.h"
 #include "t_utils.h"
 
 static size_t test_monomial_order(void);
@@ -223,20 +224,6 @@ static size_t test_monomial_mul(void) {
 	ctx_destroy(ctx);
 
 	return fails;
-}
-
-static bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
-	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
-	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
-
-	return spatial.val != 0 && internal.val != 0 && ctx_ok(ctx);
-}
-
-static FacRef with_indices(Context* ctx, SymRef head, Index first,
-						   Index second) {
-	return factor_intern(ctx, head, rat_from_int(1), (Index[]){first, second});
 }
 
 static size_t test_monomial_dummies(void) {

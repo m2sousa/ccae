@@ -3,7 +3,6 @@
 
 #include <ccae/core/rational.h>
 #include <ccae/io/sexpr.h>
-#include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
@@ -11,6 +10,7 @@
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
+#include "t_kernel_utils.h"
 #include "t_utils.h"
 
 static size_t test_sexpr_print_single(void);
@@ -324,23 +324,8 @@ static size_t test_sexpr_read_errors(void) {
 	return fails;
 }
 
-static bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
-	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
-	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
-
-	return spatial.val != 0 && internal.val != 0 && ctx_ok(ctx);
-}
-
-static FacRef with_indices(Context* ctx, SymRef head, char first, char second) {
-	Index indices[] = {{IDX_FREE, (u16)first}, {IDX_FREE, (u16)second}};
-
-	return factor_intern(ctx, head, rat_from_int(1), indices);
-}
-
-static ExprRef build_expr_from_factors(Context* ctx, const FacRef* facs,
-									   size_t nbr_fac) {
+static ExprRef intern_product(Context* ctx, const FacRef* facs,
+							  size_t nbr_fac) {
 	MonoRef mono = mono_intern(ctx, facs, nbr_fac);
 
 	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
@@ -359,19 +344,17 @@ static size_t test_sexpr_print_indices(void) {
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
-	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
-	FacRef dE_aj = with_indices(ctx, dE, 'a', 'j');
-	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
-	FacRef dK_jb = with_indices(ctx, dK, 'j', 'b');
-	FacRef dK_ic = with_indices(ctx, dK, 'i', 'c');
+	FacRef dE_ai = with_free_indices(ctx, dE, 'a', 'i');
+	FacRef dE_aj = with_free_indices(ctx, dE, 'a', 'j');
+	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
+	FacRef dK_jb = with_free_indices(ctx, dK, 'j', 'b');
+	FacRef dK_ic = with_free_indices(ctx, dK, 'i', 'c');
 
-	ExprRef single = build_expr_from_factors(ctx, (FacRef[]){dE_ai}, 1);
-	ExprRef with_scalar =
-		build_expr_from_factors(ctx, (FacRef[]){x_one, dE_ai}, 2);
-	ExprRef by_i = build_expr_from_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
-	ExprRef by_j = build_expr_from_factors(ctx, (FacRef[]){dE_aj, dK_jb}, 2);
-	ExprRef i_taken =
-		build_expr_from_factors(ctx, (FacRef[]){dE_aj, dK_jb, dK_ic}, 3);
+	ExprRef single = intern_product(ctx, (FacRef[]){dE_ai}, 1);
+	ExprRef with_scalar = intern_product(ctx, (FacRef[]){x_one, dE_ai}, 2);
+	ExprRef by_i = intern_product(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	ExprRef by_j = intern_product(ctx, (FacRef[]){dE_aj, dK_jb}, 2);
+	ExprRef i_taken = intern_product(ctx, (FacRef[]){dE_aj, dK_jb, dK_ic}, 3);
 	CHECK(ctx_ok(ctx));
 
 	CHECK(prints_as(ctx, single, "dE^a_i"));
@@ -400,11 +383,11 @@ static size_t test_sexpr_read_indices(void) {
 	SymRef dK = {0};
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
-	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
-	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
+	FacRef dE_ai = with_free_indices(ctx, dE, 'a', 'i');
+	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
 
-	ExprRef single = build_expr_from_factors(ctx, (FacRef[]){dE_ai}, 1);
-	ExprRef by_i = build_expr_from_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	ExprRef single = intern_product(ctx, (FacRef[]){dE_ai}, 1);
+	ExprRef by_i = intern_product(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
 	CHECK(x.val != 0 && ctx_ok(ctx));
 
 	CHECK(reads_as(ctx, "dE^a_i", single));
@@ -463,10 +446,10 @@ static size_t test_sexpr_read_dummies(void) {
 	SymRef dK = {0};
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
-	FacRef dE_ai = with_indices(ctx, dE, 'a', 'i');
-	FacRef dK_ib = with_indices(ctx, dK, 'i', 'b');
+	FacRef dE_ai = with_free_indices(ctx, dE, 'a', 'i');
+	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
 
-	ExprRef by_i = build_expr_from_factors(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
+	ExprRef by_i = intern_product(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
 	CHECK(ctx_ok(ctx));
 
 	CHECK(reads_as(ctx, "(* dE^a_$0 dK^$0_b)", by_i));
@@ -479,9 +462,9 @@ static size_t test_sexpr_read_dummies(void) {
 	CHECK(round_trips(ctx, "(* dE^a_$0 dK^$0_b dK^i_c)"));
 
 	// dE^a_i dE^b_j dK^i_b: `i` and `b` are both dummies.
-	FacRef dE_bj = with_indices(ctx, dE, 'b', 'j');
+	FacRef dE_bj = with_free_indices(ctx, dE, 'b', 'j');
 	ExprRef two_dummies =
-		build_expr_from_factors(ctx, (FacRef[]){dE_ai, dE_bj, dK_ib}, 3);
+		intern_product(ctx, (FacRef[]){dE_ai, dE_bj, dK_ib}, 3);
 	CHECK(ctx_ok(ctx));
 
 	CHECK(prints_as(ctx, two_dummies, "(* dE^a_$0 dE^$1_j dK^$0_$1)"));

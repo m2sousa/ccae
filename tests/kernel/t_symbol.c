@@ -37,7 +37,7 @@ size_t test_symbol(void) {
 }
 
 // A context with a spatial (a…h) and an internal (i…n) bundle.
-static Context* ctx_with_bundles(void) {
+static Context* create_ctx_with_bundles(void) {
 	Context* ctx = ctx_create();
 	if (!ctx)
 		return NULL;
@@ -56,7 +56,7 @@ static Context* ctx_with_bundles(void) {
 // Declares one symbol in a fresh context, and tells whether it was refused
 // with a message.
 static bool is_rejected(SymKind kind, const char* slotspec, u16 flags) {
-	Context* ctx = ctx_with_bundles();
+	Context* ctx = create_ctx_with_bundles();
 	if (!ctx)
 		return false;
 
@@ -72,7 +72,7 @@ static bool is_rejected(SymKind kind, const char* slotspec, u16 flags) {
 static size_t test_symbol_declare(void) {
 	size_t fails = 0;
 
-	Context* ctx = ctx_with_bundles();
+	Context* ctx = create_ctx_with_bundles();
 	if (!ctx)
 		return 1;
 
@@ -106,7 +106,7 @@ static size_t test_symbol_declare(void) {
 static size_t test_symbol_duplicate(void) {
 	size_t fails = 0;
 
-	Context* ctx = ctx_with_bundles();
+	Context* ctx = create_ctx_with_bundles();
 	if (!ctx)
 		return 1;
 
@@ -153,7 +153,7 @@ static size_t test_symbol_bad_flags(void) {
 static size_t test_symbol_latex(void) {
 	size_t fails = 0;
 
-	Context* ctx = ctx_with_bundles();
+	Context* ctx = create_ctx_with_bundles();
 	if (!ctx)
 		return 1;
 
@@ -243,7 +243,7 @@ static size_t test_symbol_too_many_slots(void) {
 static size_t test_symbol_symmetry(void) {
 	size_t fails = 0;
 
-	Context* ctx = ctx_with_bundles();
+	Context* ctx = create_ctx_with_bundles();
 	if (!ctx)
 		return 1;
 

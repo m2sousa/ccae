@@ -95,8 +95,8 @@ static bool reject_index(Context* ctx, Index index, const char* problem) {
 
 // Constructs the occurences: index and its associated bundle & symbol.
 // Returns the number of occurences.
-static size_t build_occurrences(const Context* ctx, const Monomial* mono,
-								Occurrence* out) {
+static size_t build_occurrences(Occurrence* out, const Context* ctx,
+								const Monomial* mono) {
 	size_t nbr_occ = 0;
 
 	for (u64 i = 0; i < mono->nbr_fac; ++i) {
@@ -115,11 +115,11 @@ static size_t build_occurrences(const Context* ctx, const Monomial* mono,
 }
 
 // Returns how many occurrences hold the same index as `occ[i]`.
-// `partner` gets the last one other than `i`, or `i` if there is none.
-static size_t count_uses(size_t* partner, const Occurrence* occ, size_t nbr_occ,
+// `out` gets the last occurence index, or `i` if there is none.
+static size_t count_uses(size_t* out, const Occurrence* occ, size_t nbr_occ,
 						 size_t i) {
 	size_t nbr_use = 0;
-	*partner = i;
+	*out = i;
 
 	for (size_t j = 0; j < nbr_occ; ++j) {
 		if (!index_equal(occ[j].index, occ[i].index))
@@ -127,7 +127,7 @@ static size_t count_uses(size_t* partner, const Occurrence* occ, size_t nbr_occ,
 
 		++nbr_use;
 		if (j != i)
-			*partner = j;
+			*out = j;
 	}
 
 	return nbr_use;
@@ -212,7 +212,7 @@ static void rebuild_factors_with_dummies(Context* ctx, Monomial* mono,
 // Fails on any other repeated index.
 static bool check_and_build_dummies(Context* ctx, Monomial* mono) {
 	Occurrence occ[CCAE_MAX_INDICES];
-	size_t nbr_occ = build_occurrences(ctx, mono, occ);
+	size_t nbr_occ = build_occurrences(occ, ctx, mono);
 
 	if (!check_repeated_indices(ctx, occ, nbr_occ))
 		return false;
@@ -386,9 +386,9 @@ bool mono_have_same_free_indices(const Context* ctx, MonoRef a, MonoRef b) {
 	Occurrence occ_b[CCAE_MAX_INDICES];
 
 	size_t nbr_a =
-		build_occurrences(ctx, &vec_at(ctx->monomials, a.val), occ_a);
+		build_occurrences(occ_a, ctx, &vec_at(ctx->monomials, a.val));
 	size_t nbr_b =
-		build_occurrences(ctx, &vec_at(ctx->monomials, b.val), occ_b);
+		build_occurrences(occ_b, ctx, &vec_at(ctx->monomials, b.val));
 
 	nbr_a = keep_free_occurrences(occ_a, nbr_a);
 	nbr_b = keep_free_occurrences(occ_b, nbr_b);

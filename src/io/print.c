@@ -70,22 +70,20 @@ static const char* kind_name(SymKind kind) {
 static char slot_index_name(const Context* ctx, const Symbol* sym, u8 slot) {
 	BundleRef bundle_ref = sym->slot_bundle[slot];
 
-	// Count how many slots from the same bundle are already taken into
-	// account in order to get the next one.
-	size_t count = 0;
+	size_t nbr_slot_in_bundle = 0;
 	for (u8 prev = 0; prev < slot; ++prev) {
 		if (sym->slot_bundle[prev].val == bundle_ref.val)
-			++count;
+			++nbr_slot_in_bundle;
 	}
 
 	Bundle bundle = vec_at(ctx->bundles, bundle_ref.val);
 	const char* index_names = sp_get(ctx->sp, bundle.index_names);
 
-	if (count >= strlen(index_names))
+	if (nbr_slot_in_bundle >= strlen(index_names))
 		die("CCAE (print_symbol): more slots than index names in a "
 			"bundle.");
 
-	return index_names[count];
+	return index_names[nbr_slot_in_bundle];
 }
 
 static char slot_mark(const Symbol* sym, u8 slot) {

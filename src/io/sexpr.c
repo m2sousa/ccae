@@ -48,7 +48,7 @@ static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 	const Symbol* head = &vec_at(ctx->symbols, factor.head.val);
 	const char* name = sp_get(ctx->sp, head->name);
 
-	if (rat_is_one(factor.power)) {
+	if (rat_is_one(factor.exponent)) {
 		put_string(out, name);
 		put_indices_as_sexpr(out, head, factor.indices);
 		return;
@@ -58,7 +58,7 @@ static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 	put_string(out, name);
 	put_indices_as_sexpr(out, head, factor.indices);
 	put_char(out, ' ');
-	put_rational(out, factor.power);
+	put_rational(out, factor.exponent);
 	put_char(out, ')');
 }
 
@@ -289,7 +289,7 @@ static bool read_indices(Index* out, Context* ctx, const Symbol* head,
 }
 
 static FacRef read_factor(Reader* r, const char* token, size_t length,
-						  Rational power) {
+						  Rational exponent) {
 	FacRef null_ref = {.val = 0};
 
 	size_t name_length = 0;
@@ -314,7 +314,7 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 					  length - name_length))
 		return null_ref;
 
-	return factor_intern(r->ctx, sym, power,
+	return factor_intern(r->ctx, sym, exponent,
 						 head.nbr_slot > 0 ? indices : NULL);
 }
 
@@ -362,7 +362,7 @@ static ExprRef read_atom(Reader* r) {
 		r->ctx, read_factor(r, token, length, rat_from_int(1)));
 }
 
-static FacRef read_power(Reader* r) {
+static FacRef read_factor_with_exponent(Reader* r) {
 	FacRef null_ref = {.val = 0};
 
 	skip_spaces(r);
@@ -378,15 +378,15 @@ static FacRef read_power(Reader* r) {
 
 	skip_spaces(r);
 
-	const char* exponent = NULL;
-	size_t exponent_length = token_length(&exponent, r);
-	Rational power;
+	const char* exponent_text = NULL;
+	size_t exponent_length = token_length(&exponent_text, r);
+	Rational exponent;
 
-	if (!looks_like_number(exponent, exponent_length) ||
-		!read_number(&power, exponent, exponent_length)) {
+	if (!looks_like_number(exponent_text, exponent_length) ||
+		!read_number(&exponent, exponent_text, exponent_length)) {
 		err_set(&r->ctx->err, CCAE_INVALID_ARG,
 				"s-expression: '^' needs a number, got '%.*s'.",
-				(int)exponent_length, exponent);
+				(int)exponent_length, exponent_text);
 		return null_ref;
 	}
 
@@ -400,7 +400,7 @@ static FacRef read_power(Reader* r) {
 
 	++r->pos;
 
-	return read_factor(r, base, base_length, power);
+	return read_factor(r, base, base_length, exponent);
 }
 
 static bool next_is_factor(const Reader* r) {
@@ -427,7 +427,7 @@ static FacRef read_factor_operand(Reader* r) {
 		skip_spaces(r);
 		r->pos += 1;
 
-		return read_power(r);
+		return read_factor_with_exponent(r);
 	}
 
 	const char* token = NULL;
@@ -507,7 +507,7 @@ static ExprRef read_list(Reader* r) {
 		return read_operands(r, *op);
 
 	if (length == 1 && *op == '^')
-		return build_expr_from_factor(r->ctx, read_power(r));
+		return build_expr_from_factor(r->ctx, read_factor_with_exponent(r));
 
 	err_set(&r->ctx->err, CCAE_INVALID_ARG,
 			"s-expression: unknown operator '%.*s'.", (int)length, op);

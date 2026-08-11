@@ -16,19 +16,20 @@ static bool reject_factor(Context* ctx, const Symbol* sym,
 	return false;
 }
 
-static bool check_power(Context* ctx, const Symbol* sym, Rational power) {
-	if (rat_is_zero(power))
-		return reject_factor(ctx, sym, "power 0");
+static bool check_exponent(Context* ctx, const Symbol* sym, Rational exponent) {
+	if (rat_is_zero(exponent))
+		return reject_factor(ctx, sym, "exponent 0");
 
-	if (sym->nbr_slot > 0 && !rat_is_one(power))
+	if (sym->nbr_slot > 0 && !rat_is_one(exponent))
 		return reject_factor(ctx, sym,
-							 "power other than 1 on a symbol with slots");
+							 "exponent other than 1 on a symbol with slots");
 
-	if (power.den != 1 && !(sym->flags & F_POSITIVE))
-		return reject_factor(ctx, sym, "non-integer power without F_POSITIVE");
+	if (exponent.den != 1 && !(sym->flags & F_POSITIVE))
+		return reject_factor(ctx, sym,
+							 "non-integer exponent without F_POSITIVE");
 
-	if (power.negative && !(sym->flags & F_NONZERO))
-		return reject_factor(ctx, sym, "negative power without F_NONZERO");
+	if (exponent.negative && !(sym->flags & F_NONZERO))
+		return reject_factor(ctx, sym, "negative exponent without F_NONZERO");
 
 	return true;
 }
@@ -70,7 +71,7 @@ static bool have_same_indices(const Index* a, const Index* b, u8 nbr_slot) {
 	return true;
 }
 
-FacRef factor_intern(Context* ctx, SymRef head, Rational power,
+FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 					 const Index* indices) {
 	FacRef null_ref = {.val = 0};
 
@@ -82,7 +83,8 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational power,
 
 	const Symbol* sym = &vec_at(ctx->symbols, head.val);
 
-	if (!check_power(ctx, sym, power) || !check_indices(ctx, sym, indices))
+	if (!check_exponent(ctx, sym, exponent) ||
+		!check_indices(ctx, sym, indices))
 		return null_ref;
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
@@ -91,18 +93,18 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational power,
 
 		// Rationals are normalised on creation, so equal factors must
 		// have strictly equal fields.
-		bool same_power = fac.power.negative == power.negative &&
-						  fac.power.num == power.num &&
-						  fac.power.den == power.den;
+		bool same_exponent = fac.exponent.negative == exponent.negative &&
+							 fac.exponent.num == exponent.num &&
+							 fac.exponent.den == exponent.den;
 
-		if (fac.head.val == head.val && same_power &&
+		if (fac.head.val == head.val && same_exponent &&
 			have_same_indices(fac.indices, indices, sym->nbr_slot)) {
 			FacRef found = {.val = (u32)i};
 			return found;
 		}
 	}
 
-	Factor fac = {.head = head, .power = power};
+	Factor fac = {.head = head, .exponent = exponent};
 
 	for (u8 k = 0; k < sym->nbr_slot; ++k)
 		fac.indices[k] = indices[k];

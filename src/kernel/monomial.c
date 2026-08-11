@@ -41,9 +41,9 @@ static void sort_factors(const Context* ctx, Monomial* mono) {
 	}
 }
 
-// Merge scalar factor (ex: x*x => x^2) by adding their power,
+// Merge scalar factor (ex: x*x => x^2) by adding their exponent,
 // do nothing otherwise. Might fail if a factor is rejected on interning.
-static bool check_and_merge_powers(Context* ctx, Monomial* mono) {
+static bool check_and_merge_exponents(Context* ctx, Monomial* mono) {
 	size_t nbr_kept = 0;
 	size_t i = 0;
 
@@ -56,7 +56,7 @@ static bool check_and_merge_powers(Context* ctx, Monomial* mono) {
 			continue;
 		}
 
-		Rational power = first.power;
+		Rational exponent = first.exponent;
 
 		for (++i; i < mono->nbr_fac; ++i) {
 			Factor next = vec_at(ctx->factors, mono->fac[i].val);
@@ -64,13 +64,13 @@ static bool check_and_merge_powers(Context* ctx, Monomial* mono) {
 			if (next.head.val != first.head.val)
 				break;
 
-			power = rat_add(power, next.power);
+			exponent = rat_add(exponent, next.exponent);
 		}
 
-		if (rat_is_zero(power))
+		if (rat_is_zero(exponent))
 			continue;
 
-		FacRef merged = factor_intern(ctx, first.head, power, NULL);
+		FacRef merged = factor_intern(ctx, first.head, exponent, NULL);
 		if (merged.val == 0)
 			return false;
 
@@ -195,10 +195,10 @@ static void rebuild_factors_with_dummies(Context* ctx, Monomial* mono,
 		if (nbr_slot == 0)
 			continue;
 
-		FacRef rebuilt = factor_intern(ctx, fac.head, fac.power,
+		FacRef rebuilt = factor_intern(ctx, fac.head, fac.exponent,
 									   &indices_with_dummies[offset]);
 
-		// The power and free indices were already accepted, and dummies are
+		// The exponent and free indices were already accepted, and dummies are
 		// not checked: this cannot fail.
 		if (rebuilt.val == 0)
 			die("CCAE (mono_intern): rebuilt factor rejected.");
@@ -259,7 +259,7 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	sort_factors(ctx, &mono);
 
-	if (!check_and_merge_powers(ctx, &mono))
+	if (!check_and_merge_exponents(ctx, &mono))
 		return null_ref;
 
 	if (!check_and_build_dummies(ctx, &mono))
@@ -314,7 +314,7 @@ static FacRef shift_dummies(Context* ctx, FacRef f, u16 id_shift) {
 			fac.indices[k].id = (u16)(fac.indices[k].id + id_shift);
 	}
 
-	FacRef shifted = factor_intern(ctx, fac.head, fac.power, fac.indices);
+	FacRef shifted = factor_intern(ctx, fac.head, fac.exponent, fac.indices);
 
 	if (shifted.val == 0)
 		die("CCAE (mono_mul): id shifted factor rejected.");

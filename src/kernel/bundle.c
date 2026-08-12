@@ -61,24 +61,24 @@ BundleRef bundle_declare(Context* ctx, const char* name,
 					 .index_names = sp_intern(ctx->sp, index_names)};
 	vec_append(ctx->perm, ctx->bundles, bundle);
 
-	BundleRef bundle_ref = {.val = (u32)(ctx->bundles.length - 1)};
-	return bundle_ref;
+	BundleRef result = {.val = (u32)(ctx->bundles.length - 1)};
+	return result;
 }
 
 BundleRef bundle_find_by_index_name(const Context* ctx, char index_name) {
-	BundleRef bundle_ref = {.val = 0};
+	BundleRef found = {.val = 0};
 
 	if (!index_name)
-		return bundle_ref;
+		return found;
 
 	for (size_t i = 1; i < ctx->bundles.length; ++i) {
 		const char* names =
 			sp_get(ctx->sp, vec_at(ctx->bundles, i).index_names);
 		if (strchr(names, index_name)) {
-			bundle_ref.val = (u32)i;
+			found.val = (u32)i;
 			break;
 		}
 	}
 
-	return bundle_ref;
+	return found;
 }

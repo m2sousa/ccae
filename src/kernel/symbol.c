@@ -163,8 +163,8 @@ static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 
 	vec_append(ctx->perm, ctx->symbols, sym);
 
-	SymRef sr = {.val = (u32)(ctx->symbols.length - 1)};
-	return sr;
+	SymRef result = {.val = (u32)(ctx->symbols.length - 1)};
+	return result;
 }
 
 SymRef symbol_declare_tensor(Context* ctx, const char* name, SymKind kind,

@@ -110,7 +110,7 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 		fac.indices[k] = indices[k];
 	vec_append(ctx->perm, ctx->factors, fac);
 
-	FacRef fr = {.val = (u32)(ctx->factors.length - 1)};
+	FacRef result = {.val = (u32)(ctx->factors.length - 1)};
 
-	return fr;
+	return result;
 }

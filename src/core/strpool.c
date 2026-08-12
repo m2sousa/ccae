@@ -48,8 +48,8 @@ StringRef sp_intern(StringPool* sp, const char* s) {
 		StringEntry elem = vec_at(sp->entries, i);
 		if (hash == elem.hash && length == elem.length &&
 			memcmp(s, elem.data, length) == 0) {
-			StringRef sr = {.val = (u32)i};
-			return sr;
+			StringRef found = {.val = (u32)i};
+			return found;
 		}
 	}
 
@@ -63,8 +63,8 @@ StringRef sp_intern(StringPool* sp, const char* s) {
 	StringEntry se = {.data = data, .length = length, .hash = hash};
 	vec_append(sp->arena, sp->entries, se);
 
-	StringRef sr = {.val = (u32)(sp->entries.length - 1)};
-	return sr;
+	StringRef result = {.val = (u32)(sp->entries.length - 1)};
+	return result;
 }
 
 const char* sp_get(const StringPool* sp, StringRef sr) {

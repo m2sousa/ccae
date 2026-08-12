@@ -77,9 +77,9 @@ static ExprRef intern_terms(Context* ctx, const Term* terms, size_t nbr_term) {
 
 	vec_append(ctx->perm, ctx->exprs, expr);
 
-	ExprRef er = {.val = (u32)(ctx->exprs.length - 1)};
+	ExprRef result = {.val = (u32)(ctx->exprs.length - 1)};
 
-	return er;
+	return result;
 }
 
 ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {

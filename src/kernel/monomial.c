@@ -279,9 +279,9 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	vec_append(ctx->perm, ctx->monomials, mono);
 
-	MonoRef mr = {.val = (u32)(ctx->monomials.length - 1)};
+	MonoRef result = {.val = (u32)(ctx->monomials.length - 1)};
 
-	return mr;
+	return result;
 }
 
 static u16 count_dummies(const Context* ctx, const Monomial* mono) {

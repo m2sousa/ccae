@@ -56,7 +56,7 @@ static size_t merge_terms(Term* terms, size_t nbr_term) {
 	return nbr_kept;
 }
 
-static ExprRef find_or_store(Context* ctx, const Term* terms, size_t nbr_term) {
+static ExprRef intern_terms(Context* ctx, const Term* terms, size_t nbr_term) {
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 1; i < ctx->exprs.length; ++i) {
 		if (have_same_terms(&vec_at(ctx->exprs, i), terms, nbr_term)) {
@@ -95,7 +95,7 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 	}
 
 	if (nbr_term == 0)
-		return find_or_store(ctx, NULL, 0);
+		return intern_terms(ctx, NULL, 0);
 
 	for (size_t i = 1; i < nbr_term; ++i) {
 		if (!mono_have_same_free_indices(ctx, terms[0].mono, terms[i].mono)) {
@@ -109,7 +109,7 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 
 	size_t nbr_kept = merge_terms(terms, nbr_term);
 
-	return find_or_store(ctx, terms, nbr_kept);
+	return intern_terms(ctx, terms, nbr_kept);
 }
 
 ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b) {

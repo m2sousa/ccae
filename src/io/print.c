@@ -67,12 +67,12 @@ static const char* kind_name(SymKind kind) {
 	return "?";
 }
 
-static char slot_index_name(const Context* ctx, const Symbol* sym, u8 slot) {
-	BundleRef bundle_ref = sym->slot_bundle[slot];
+static char slot_index_name(const Context* ctx, const Symbol* symbol, u8 slot) {
+	BundleRef bundle_ref = symbol->slot_bundle[slot];
 
 	size_t nbr_slot_in_bundle = 0;
 	for (u8 prev = 0; prev < slot; ++prev) {
-		if (sym->slot_bundle[prev].val == bundle_ref.val)
+		if (symbol->slot_bundle[prev].val == bundle_ref.val)
 			++nbr_slot_in_bundle;
 	}
 
@@ -86,40 +86,40 @@ static char slot_index_name(const Context* ctx, const Symbol* sym, u8 slot) {
 	return index_names[nbr_slot_in_bundle];
 }
 
-static char slot_mark(const Symbol* sym, u8 slot) {
-	return sym->slot_pos[slot] == SLOT_UP ? '^' : '_';
+static char slot_mark(const Symbol* symbol, u8 slot) {
+	return symbol->slot_pos[slot] == SLOT_UP ? '^' : '_';
 }
 
 static void put_slots_ascii(PrintBuffer* out, const Context* ctx,
-							const Symbol* sym) {
-	for (u8 slot = 0; slot < sym->nbr_slot; ++slot) {
-		put_char(out, slot_mark(sym, slot));
-		put_char(out, slot_index_name(ctx, sym, slot));
+							const Symbol* symbol) {
+	for (u8 slot = 0; slot < symbol->nbr_slot; ++slot) {
+		put_char(out, slot_mark(symbol, slot));
+		put_char(out, slot_index_name(ctx, symbol, slot));
 	}
 }
 
 // Slots with the same position share one group: "_{abc}". A "{}" between
 // groups keeps the slot order visible: "^{i}{}_{a}".
 static void put_slots_latex(PrintBuffer* out, const Context* ctx,
-							const Symbol* sym) {
-	for (u8 slot = 0; slot < sym->nbr_slot; ++slot) {
+							const Symbol* symbol) {
+	for (u8 slot = 0; slot < symbol->nbr_slot; ++slot) {
 		// If first slot or if slot is not at the same position (up/down)
 		// as the last one, open a group.
 		bool must_open_group =
-			slot == 0 || sym->slot_pos[slot] != sym->slot_pos[slot - 1];
+			slot == 0 || symbol->slot_pos[slot] != symbol->slot_pos[slot - 1];
 
 		if (must_open_group) {
 			if (slot > 0)
 				put_string(out, "}{}");
 
-			put_char(out, slot_mark(sym, slot));
+			put_char(out, slot_mark(symbol, slot));
 			put_char(out, '{');
 		}
 
-		put_char(out, slot_index_name(ctx, sym, slot));
+		put_char(out, slot_index_name(ctx, symbol, slot));
 	}
 
-	if (sym->nbr_slot > 0)
+	if (symbol->nbr_slot > 0)
 		put_char(out, '}');
 }
 
@@ -141,9 +141,9 @@ static void put_flags(PrintBuffer* out, u16 flags) {
 static void put_symbol(PrintBuffer* out, const Context* ctx,
 					   const Symbol* symbol, PrintMode mode) {
 	if (mode == PRINT_LATEX) {
-		StringRef head = symbol->latex.val ? symbol->latex : symbol->name;
+		StringRef shown_name = symbol->latex.val ? symbol->latex : symbol->name;
 
-		put_string(out, sp_get(ctx->sp, head));
+		put_string(out, sp_get(ctx->sp, shown_name));
 		put_slots_latex(out, ctx, symbol);
 	} else {
 		put_string(out, sp_get(ctx->sp, symbol->name));

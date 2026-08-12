@@ -27,10 +27,10 @@ static void put_rational(PrintBuffer* out, Rational r) {
 	put_string(out, text);
 }
 
-static void put_indices_as_sexpr(PrintBuffer* out, const Symbol* head,
+static void put_indices_as_sexpr(PrintBuffer* out, const Symbol* symbol,
 								 const Index* indices) {
-	for (u8 k = 0; k < head->nbr_slot; ++k) {
-		put_char(out, head->slot_pos[k] == SLOT_UP ? '^' : '_');
+	for (u8 k = 0; k < symbol->nbr_slot; ++k) {
+		put_char(out, symbol->slot_pos[k] == SLOT_UP ? '^' : '_');
 
 		if (indices[k].kind == IDX_FREE) {
 			put_char(out, (char)indices[k].id);
@@ -45,18 +45,18 @@ static void put_indices_as_sexpr(PrintBuffer* out, const Symbol* head,
 static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 								FacRef f) {
 	Factor factor = vec_at(ctx->factors, f.val);
-	const Symbol* head = &vec_at(ctx->symbols, factor.head.val);
-	const char* name = sp_get(ctx->sp, head->name);
+	const Symbol* symbol = &vec_at(ctx->symbols, factor.head.val);
+	const char* name = sp_get(ctx->sp, symbol->name);
 
 	if (rat_is_one(factor.exponent)) {
 		put_string(out, name);
-		put_indices_as_sexpr(out, head, factor.indices);
+		put_indices_as_sexpr(out, symbol, factor.indices);
 		return;
 	}
 
 	put_string(out, "(^ ");
 	put_string(out, name);
-	put_indices_as_sexpr(out, head, factor.indices);
+	put_indices_as_sexpr(out, symbol, factor.indices);
 	put_char(out, ' ');
 	put_rational(out, factor.exponent);
 	put_char(out, ')');
@@ -226,11 +226,11 @@ static SymRef find_symbol(const Context* ctx, const char* name, size_t length) {
 	return null_ref;
 }
 
-static bool reject_indices(Context* ctx, const Symbol* head, const char* text,
+static bool reject_indices(Context* ctx, const Symbol* symbol, const char* text,
 						   size_t length) {
 	err_set(&ctx->err, CCAE_INVALID_ARG,
 			"s-expression: bad indices '%.*s' for '%s'.", (int)length, text,
-			sp_get(ctx->sp, head->name));
+			sp_get(ctx->sp, symbol->name));
 
 	return false;
 }
@@ -265,25 +265,25 @@ static bool read_index(Index* out, const char** s, const char* end) {
 	return true;
 }
 
-static bool read_indices(Index* out, Context* ctx, const Symbol* head,
+static bool read_indices(Index* out, Context* ctx, const Symbol* symbol,
 						 const char* text, size_t length) {
 	const char* s = text;
 	const char* end = text + length;
 
-	for (u8 k = 0; k < head->nbr_slot; ++k) {
-		char wanted_pos = head->slot_pos[k] == SLOT_UP ? '^' : '_';
+	for (u8 k = 0; k < symbol->nbr_slot; ++k) {
+		char wanted_pos = symbol->slot_pos[k] == SLOT_UP ? '^' : '_';
 
 		if (s == end || *s != wanted_pos)
-			return reject_indices(ctx, head, text, length);
+			return reject_indices(ctx, symbol, text, length);
 
 		++s;
 
 		if (!read_index(&out[k], &s, end))
-			return reject_indices(ctx, head, text, length);
+			return reject_indices(ctx, symbol, text, length);
 	}
 
 	if (s != end)
-		return reject_indices(ctx, head, text, length);
+		return reject_indices(ctx, symbol, text, length);
 
 	return true;
 }
@@ -307,15 +307,15 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 		return null_ref;
 	}
 
-	Symbol head = vec_at(r->ctx->symbols, sym.val);
+	Symbol symbol = vec_at(r->ctx->symbols, sym.val);
 	Index indices[CCAE_MAX_SLOT];
 
-	if (!read_indices(indices, r->ctx, &head, token + name_length,
+	if (!read_indices(indices, r->ctx, &symbol, token + name_length,
 					  length - name_length))
 		return null_ref;
 
 	return factor_intern(r->ctx, sym, exponent,
-						 head.nbr_slot > 0 ? indices : NULL);
+						 symbol.nbr_slot > 0 ? indices : NULL);
 }
 
 static ExprRef build_expr_from_rational(Context* ctx, Rational coef) {

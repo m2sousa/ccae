@@ -8,41 +8,43 @@
 #include <ccae/kernel/index.h>
 #include <ccae/kernel/symbol.h>
 
-static bool reject_factor(Context* ctx, const Symbol* sym,
+static bool reject_factor(Context* ctx, const Symbol* symbol,
 						  const char* problem) {
 	err_set(&ctx->err, CCAE_INVALID_ARG, "factor '%s': %s.",
-			sp_get(ctx->sp, sym->name), problem);
+			sp_get(ctx->sp, symbol->name), problem);
 
 	return false;
 }
 
-static bool check_exponent(Context* ctx, const Symbol* sym, Rational exponent) {
+static bool check_exponent(Context* ctx, const Symbol* symbol,
+						   Rational exponent) {
 	if (rat_is_zero(exponent))
-		return reject_factor(ctx, sym, "exponent 0");
+		return reject_factor(ctx, symbol, "exponent 0");
 
-	if (sym->nbr_slot > 0 && !rat_is_one(exponent))
-		return reject_factor(ctx, sym,
+	if (symbol->nbr_slot > 0 && !rat_is_one(exponent))
+		return reject_factor(ctx, symbol,
 							 "exponent other than 1 on a symbol with slots");
 
-	if (exponent.den != 1 && !(sym->flags & F_POSITIVE))
-		return reject_factor(ctx, sym,
+	if (exponent.den != 1 && !(symbol->flags & F_POSITIVE))
+		return reject_factor(ctx, symbol,
 							 "non-integer exponent without F_POSITIVE");
 
-	if (exponent.negative && !(sym->flags & F_NONZERO))
-		return reject_factor(ctx, sym, "negative exponent without F_NONZERO");
+	if (exponent.negative && !(symbol->flags & F_NONZERO))
+		return reject_factor(ctx, symbol,
+							 "negative exponent without F_NONZERO");
 
 	return true;
 }
 
-static bool check_indices(Context* ctx, const Symbol* sym,
+static bool check_indices(Context* ctx, const Symbol* symbol,
 						  const Index* indices) {
-	if (sym->nbr_slot == 0)
+	if (symbol->nbr_slot == 0)
 		return true;
 
 	if (!indices)
-		return reject_factor(ctx, sym, "no indices on a symbol with slots");
+		return reject_factor(ctx, symbol, "no indices on a symbol with slots");
 
-	for (u8 k = 0; k < sym->nbr_slot; ++k) {
+	for (u8 k = 0; k < symbol->nbr_slot; ++k) {
 		// Dummies are not checked: dummies must be checked by the monomial to
 		// ensure their repeated, they are uninsteresting at the factor level.
 		if (indices[k].kind != IDX_FREE)
@@ -51,10 +53,10 @@ static bool check_indices(Context* ctx, const Symbol* sym,
 		char name = (char)indices[k].id;
 		BundleRef owner = bundle_find_by_index_name(ctx, name);
 
-		if (owner.val != sym->slot_bundle[k].val) {
+		if (owner.val != symbol->slot_bundle[k].val) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"factor '%s': index '%c' is not part of its slot's bundle.",
-					sp_get(ctx->sp, sym->name), name);
+					sp_get(ctx->sp, symbol->name), name);
 			return false;
 		}
 	}
@@ -81,10 +83,10 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 	if (head.val == 0 || head.val >= ctx->symbols.length)
 		die("CCAE (factor_intern): symbol handle out of range.");
 
-	const Symbol* sym = &vec_at(ctx->symbols, head.val);
+	const Symbol* symbol = &vec_at(ctx->symbols, head.val);
 
-	if (!check_exponent(ctx, sym, exponent) ||
-		!check_indices(ctx, sym, indices))
+	if (!check_exponent(ctx, symbol, exponent) ||
+		!check_indices(ctx, symbol, indices))
 		return null_ref;
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
@@ -98,7 +100,7 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 							 fac.exponent.den == exponent.den;
 
 		if (fac.head.val == head.val && same_exponent &&
-			have_same_indices(fac.indices, indices, sym->nbr_slot)) {
+			have_same_indices(fac.indices, indices, symbol->nbr_slot)) {
 			FacRef found = {.val = (u32)i};
 			return found;
 		}
@@ -106,7 +108,7 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 
 	Factor fac = {.head = head, .exponent = exponent};
 
-	for (u8 k = 0; k < sym->nbr_slot; ++k)
+	for (u8 k = 0; k < symbol->nbr_slot; ++k)
 		fac.indices[k] = indices[k];
 	vec_append(ctx->perm, ctx->factors, fac);
 

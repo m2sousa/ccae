@@ -66,29 +66,29 @@ static bool reject_flag(Context* ctx, const char* name, const char* problem) {
 	return false;
 }
 
-static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
+static bool check_flags(Context* ctx, const char* name, const Symbol* symbol) {
 	constexpr u16 ALL_FLAGS = F_CONST_IN_SPACE | F_PHASE_SPACE | F_POSITIVE |
 							  F_NONZERO | F_ZERO_MODE_FREE;
 
-	u16 flags = sym->flags;
+	u16 flags = symbol->flags;
 
 	if (flags & ~ALL_FLAGS)
 		return reject_flag(ctx, name, "unknown flag");
 
-	if ((flags & F_POSITIVE) && sym->nbr_slot > 0)
+	if ((flags & F_POSITIVE) && symbol->nbr_slot > 0)
 		return reject_flag(ctx, name, "F_POSITIVE on a symbol with slots");
 
 	// Divisions are only done with scalars, no tensors.
-	if ((flags & F_NONZERO) && sym->nbr_slot > 0)
+	if ((flags & F_NONZERO) && symbol->nbr_slot > 0)
 		return reject_flag(ctx, name, "F_NONZERO on a symbol with slots");
 
-	if ((flags & F_PHASE_SPACE) && sym->kind != SYM_FIELD &&
-		sym->kind != SYM_HOMOG)
+	if ((flags & F_PHASE_SPACE) && symbol->kind != SYM_FIELD &&
+		symbol->kind != SYM_HOMOG)
 		return reject_flag(ctx, name,
 						   "F_PHASE_SPACE on a symbol that is neither a field "
 						   "nor homogeneous");
 
-	if ((flags & F_CONST_IN_SPACE) && sym->kind == SYM_FIELD)
+	if ((flags & F_CONST_IN_SPACE) && symbol->kind == SYM_FIELD)
 		return reject_flag(ctx, name, "F_CONST_IN_SPACE on a field");
 
 	if ((flags & F_ZERO_MODE_FREE) && (flags & F_CONST_IN_SPACE))
@@ -100,16 +100,16 @@ static bool check_flags(Context* ctx, const char* name, const Symbol* sym) {
 
 // A slot symmetry may only exchange slots of the same bundle and position.
 static bool check_symmetry_slots(Context* ctx, const char* name,
-								 const char* symmetry, const Symbol* sym) {
-	for (u8 g = 0; g < sym->generators.nbr_generator; ++g) {
-		SignedPerm perm = sym->generators.generators[g];
+								 const char* symmetry, const Symbol* symbol) {
+	for (u8 g = 0; g < symbol->generators.nbr_generator; ++g) {
+		SignedPerm perm = symbol->generators.generators[g];
 
-		for (u8 k = 0; k < sym->nbr_slot; ++k) {
+		for (u8 k = 0; k < symbol->nbr_slot; ++k) {
 			u8 target = perm.image[k];
 
 			bool same_bundle =
-				sym->slot_bundle[k].val == sym->slot_bundle[target].val;
-			bool same_pos = sym->slot_pos[k] == sym->slot_pos[target];
+				symbol->slot_bundle[k].val == symbol->slot_bundle[target].val;
+			bool same_pos = symbol->slot_pos[k] == symbol->slot_pos[target];
 
 			if (!same_bundle || !same_pos) {
 				err_set(&ctx->err, CCAE_INVALID_ARG,
@@ -149,19 +149,20 @@ static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 	if (kind == SYM_CONST)
 		flags |= F_CONST_IN_SPACE;
 
-	Symbol sym = {.name = name_ref, .kind = kind, .flags = flags};
+	Symbol symbol = {.name = name_ref, .kind = kind, .flags = flags};
 
-	if (!check_and_read_slotspec(&sym, ctx, slotspec))
+	if (!check_and_read_slotspec(&symbol, ctx, slotspec))
 		return null_ref;
 
-	if (!symmetry_check_and_read(&sym.generators, ctx, symmetry, sym.nbr_slot))
+	if (!symmetry_check_and_read(&symbol.generators, ctx, symmetry,
+								 symbol.nbr_slot))
 		return null_ref;
 
-	if (!check_symmetry_slots(ctx, name, symmetry, &sym) ||
-		!check_flags(ctx, name, &sym))
+	if (!check_symmetry_slots(ctx, name, symmetry, &symbol) ||
+		!check_flags(ctx, name, &symbol))
 		return null_ref;
 
-	vec_append(ctx->perm, ctx->symbols, sym);
+	vec_append(ctx->perm, ctx->symbols, symbol);
 
 	SymRef result = {.val = (u32)(ctx->symbols.length - 1)};
 	return result;

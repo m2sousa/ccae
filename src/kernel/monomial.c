@@ -101,12 +101,12 @@ static size_t build_occurrences(Occurrence* out, const Context* ctx,
 
 	for (u64 i = 0; i < mono->nbr_fac; ++i) {
 		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
-		const Symbol* sym = &vec_at(ctx->symbols, fac.head.val);
+		const Symbol* symbol = &vec_at(ctx->symbols, fac.head.val);
 
-		for (u8 k = 0; k < sym->nbr_slot; ++k) {
+		for (u8 k = 0; k < symbol->nbr_slot; ++k) {
 			Occurrence occ = {.index = fac.indices[k],
-							  .bundle = sym->slot_bundle[k],
-							  .pos = sym->slot_pos[k]};
+							  .bundle = symbol->slot_bundle[k],
+							  .pos = symbol->slot_pos[k]};
 			out[nbr_occ++] = occ;
 		}
 	}

@@ -459,7 +459,7 @@ static size_t test_sexpr_read_dummies(void) {
 
 	CHECK(round_trips(ctx, "(* dE^a_$0 dK^$0_b)"));
 	CHECK(round_trips(ctx, "(* 2 dE^a_$0 dK^$0_b)"));
-	CHECK(round_trips(ctx, "(* dE^a_$0 dK^$0_b dK^i_c)"));
+	CHECK(round_trips(ctx, "(* dE^a_$0 dK^i_c dK^$0_b)"));
 
 	// dE^a_i dE^b_j dK^i_b: `i` and `b` are both dummies.
 	FacRef dE_bj = with_free_indices(ctx, dE, 'b', 'j');

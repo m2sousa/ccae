@@ -16,14 +16,27 @@ typedef struct {
 	SlotPos pos;
 } Occurrence;
 
+// Orders factors by handle (head), then exponent, then indices slot by slot.
 static bool factor_comes_before(const Context* ctx, FacRef a, FacRef b) {
-	u32 head_a = vec_at(ctx->factors, a.val).head.val;
-	u32 head_b = vec_at(ctx->factors, b.val).head.val;
+	Factor fac_a = vec_at(ctx->factors, a.val);
+	Factor fac_b = vec_at(ctx->factors, b.val);
 
-	if (head_a != head_b)
-		return head_a < head_b;
+	if (fac_a.head.val != fac_b.head.val)
+		return fac_a.head.val < fac_b.head.val;
 
-	return a.val < b.val;
+	int exponent_order = rat_cmp(fac_a.exponent, fac_b.exponent);
+	if (exponent_order != 0)
+		return exponent_order < 0;
+
+	u8 nbr_slot = vec_at(ctx->symbols, fac_a.head.val).nbr_slot;
+
+	for (u8 k = 0; k < nbr_slot; ++k) {
+		int index_order = index_cmp(fac_a.indices[k], fac_b.indices[k]);
+		if (index_order != 0)
+			return index_order < 0;
+	}
+
+	return false;
 }
 
 static void sort_factors(const Context* ctx, Monomial* mono) {

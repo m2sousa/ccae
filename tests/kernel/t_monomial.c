@@ -22,6 +22,7 @@ static size_t test_monomial_mul(void);
 static size_t test_monomial_dummies(void);
 static size_t test_monomial_bad_dummies(void);
 static size_t test_monomial_mul_dummies(void);
+static size_t test_monomial_content_order(void);
 
 size_t test_monomial(void) {
 	size_t fails = 0;
@@ -34,6 +35,7 @@ size_t test_monomial(void) {
 	fails += test_monomial_dummies();
 	fails += test_monomial_bad_dummies();
 	fails += test_monomial_mul_dummies();
+	fails += test_monomial_content_order();
 
 	return fails;
 }
@@ -367,6 +369,35 @@ static size_t test_monomial_mul_dummies(void) {
 
 	CHECK(mono_mul(ctx, left, left).val == 0);
 	CHECK(!ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_monomial_content_order(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+
+	// dK^j_a is interned first, so it has the smaller handle.
+	FacRef dK_ja = with_free_indices(ctx, dK, 'j', 'a');
+	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
+	CHECK(dK_ja.val < dK_ib.val);
+
+	// Same head dK: the first index decides, therefore i comes before j.
+	MonoRef mono = mono_intern(ctx, (FacRef[]){dK_ja, dK_ib}, 2);
+	Monomial stored = vec_at(ctx->monomials, mono.val);
+
+	CHECK(stored.nbr_fac == 2);
+	CHECK(stored.fac[0].val == dK_ib.val);
+	CHECK(stored.fac[1].val == dK_ja.val);
 
 	ctx_destroy(ctx);
 

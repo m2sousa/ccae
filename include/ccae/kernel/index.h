@@ -20,4 +20,11 @@ typedef struct {
  * */
 bool index_equal(Index a, Index b);
 
+/* Returns -1, 0 or 1 as `a` comes before, is, or comes after `b`.
+ * Free indices first, by index name, then dummies, by number.
+ *
+ * Example:
+ *		`index_cmp((Index){IDX_FREE, 'b'}, (Index){IDX_DUMMY, 0})` is -1. */
+int index_cmp(Index a, Index b);
+
 #endif

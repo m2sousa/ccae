@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include <ccae/config.h>
+#include <ccae/core/arena.h>
 #include <ccae/core/error.h>
 #include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
@@ -161,6 +162,15 @@ static SymRef declare_symbol(Context* ctx, const char* name, SymKind kind,
 	if (!check_symmetry_slots(ctx, name, symmetry, &symbol) ||
 		!check_flags(ctx, name, &symbol))
 		return null_ref;
+
+	if (symbol.nbr_slot > 0) {
+		Orbit* orbit = arena_alloc(ctx->perm, Orbit);
+		if (!orbit)
+			die("CCAE (declare_symbol): out of memory.");
+
+		symmetry_build_orbit(orbit, &symbol.generators);
+		symbol.orbit = orbit;
+	}
 
 	vec_append(ctx->perm, ctx->symbols, symbol);
 

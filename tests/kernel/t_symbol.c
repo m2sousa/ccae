@@ -258,6 +258,9 @@ static size_t test_symbol_symmetry(void) {
 	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 	CHECK(vec_at(ctx->symbols, dK.val).generators.nbr_generator == 0);
 
+	CHECK(vec_at(ctx->symbols, g.val).orbit->nbr_perm == 2);
+	CHECK(vec_at(ctx->symbols, dK.val).orbit->nbr_perm == 1);
+
 	CHECK(ctx_ok(ctx));
 
 	// Slots 0 and 1 are of different bundles, then of different positions.

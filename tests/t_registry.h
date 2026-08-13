@@ -17,6 +17,7 @@
 	X(symmetry)                                                                \
 	X(factor)                                                                  \
 	X(monomial)                                                                \
+	X(canonicalise)                                                            \
 	X(expr)                                                                    \
 	X(print)                                                                   \
 	X(sexpr)                                                                   \

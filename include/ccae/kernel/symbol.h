@@ -37,6 +37,7 @@ typedef struct {
 	BundleRef slot_bundle[CCAE_MAX_SLOT];
 	SlotPos slot_pos[CCAE_MAX_SLOT];
 	Generators generators;
+	const Orbit* orbit;
 } Symbol;
 
 typedef Vec(Symbol) SymbolVec;

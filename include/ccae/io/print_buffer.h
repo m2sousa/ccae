@@ -7,7 +7,7 @@
 
 typedef struct {
 	char* buf;
-	size_t size;
+	size_t capacity;
 	size_t length;
 } PrintBuffer;
 

@@ -25,7 +25,7 @@ static const struct {
 
 void put_char(PrintBuffer* out, char c) {
 	// Keep the last byte for '\0'.
-	if (out->length + 1 >= out->size)
+	if (out->length + 1 >= out->capacity)
 		return;
 
 	out->buf[out->length++] = c;
@@ -156,57 +156,57 @@ static void put_symbol(PrintBuffer* out, const Context* ctx,
 	put_flags(out, symbol->flags);
 }
 
-void print_symbol(const Context* ctx, SymRef sym, PrintMode mode, char* buf,
-				  size_t size) {
+void print_symbol(char* out, size_t capacity, const Context* ctx, SymRef sym,
+				  PrintMode mode) {
 	if (sym.val == 0 || sym.val >= ctx->symbols.length)
 		die("CCAE (print_symbol): handle out of range.");
 
-	if (size == 0)
+	if (capacity == 0)
 		return;
 
-	buf[0] = '\0';
+	out[0] = '\0';
 
-	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
-	put_symbol(&out, ctx, &vec_at(ctx->symbols, sym.val), mode);
+	PrintBuffer buffer = {.buf = out, .capacity = capacity, .length = 0};
+	put_symbol(&buffer, ctx, &vec_at(ctx->symbols, sym.val), mode);
 }
 
-void print_symbol_table(const Context* ctx, PrintMode mode, char* buf,
-						size_t size) {
-	if (size == 0)
+void print_symbol_table(char* out, size_t capacity, const Context* ctx,
+						PrintMode mode) {
+	if (capacity == 0)
 		return;
 
-	buf[0] = '\0';
+	out[0] = '\0';
 
-	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
+	PrintBuffer buffer = {.buf = out, .capacity = capacity, .length = 0};
 
 	for (size_t i = 1; i < ctx->symbols.length; ++i) {
-		put_symbol(&out, ctx, &vec_at(ctx->symbols, i), mode);
-		put_char(&out, '\n');
+		put_symbol(&buffer, ctx, &vec_at(ctx->symbols, i), mode);
+		put_char(&buffer, '\n');
 	}
 }
 
-void print_rational(Rational r, PrintMode mode, char* buf, size_t size) {
-	if (size == 0)
+void print_rational(char* out, size_t capacity, Rational r, PrintMode mode) {
+	if (capacity == 0)
 		return;
 
-	buf[0] = '\0';
+	out[0] = '\0';
 
-	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
+	PrintBuffer buffer = {.buf = out, .capacity = capacity, .length = 0};
 
 	if (r.negative)
-		put_char(&out, '-');
+		put_char(&buffer, '-');
 
 	if (r.den == 1) {
-		put_u64(&out, r.num);
+		put_u64(&buffer, r.num);
 	} else if (mode == PRINT_LATEX) {
-		put_string(&out, "\\frac{");
-		put_u64(&out, r.num);
-		put_string(&out, "}{");
-		put_u64(&out, r.den);
-		put_char(&out, '}');
+		put_string(&buffer, "\\frac{");
+		put_u64(&buffer, r.num);
+		put_string(&buffer, "}{");
+		put_u64(&buffer, r.den);
+		put_char(&buffer, '}');
 	} else {
-		put_u64(&out, r.num);
-		put_char(&out, '/');
-		put_u64(&out, r.den);
+		put_u64(&buffer, r.num);
+		put_char(&buffer, '/');
+		put_u64(&buffer, r.den);
 	}
 }

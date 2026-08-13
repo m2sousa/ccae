@@ -49,7 +49,7 @@ size_t test_sexpr(void) {
 // Helper function to avoid those strcmp everywhere.
 static bool prints_as(const Context* ctx, ExprRef e, const char* expected) {
 	char buf[128];
-	print_sexpr(ctx, e, buf, sizeof(buf));
+	print_sexpr(buf, sizeof(buf), ctx, e);
 
 	return strcmp(buf, expected) == 0;
 }
@@ -166,7 +166,7 @@ static size_t test_sexpr_print_truncate(void) {
 		expr_intern(ctx, (Term[]){{one, mono_x}, {one, mono_y}}, 2);
 
 	char buf[5];
-	print_sexpr(ctx, x_plus_y, buf, sizeof(buf));
+	print_sexpr(buf, sizeof(buf), ctx, x_plus_y);
 	CHECK(strcmp(buf, "(+ x") == 0);
 
 	ctx_destroy(ctx);

@@ -48,10 +48,10 @@ static size_t test_print_tensor(void) {
 
 	char buf[64];
 
-	print_symbol(ctx, dK, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol(buf, sizeof(buf), ctx, dK, PRINT_ASCII);
 	CHECK(strcmp(buf, "dK^i_a field PHASE_SPACE|ZERO_MODE_FREE") == 0);
 
-	print_symbol(ctx, eps, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol(buf, sizeof(buf), ctx, eps, PRINT_ASCII);
 	CHECK(strcmp(buf, "eps_a_b_c const CONST_IN_SPACE") == 0);
 
 	ctx_destroy(ctx);
@@ -69,7 +69,7 @@ static size_t test_print_scalar(void) {
 	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE | F_NONZERO);
 
 	char buf[64];
-	print_symbol(ctx, kappa, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol(buf, sizeof(buf), ctx, kappa, PRINT_ASCII);
 
 	CHECK(strcmp(buf, "kappa const CONST_IN_SPACE|POSITIVE|NONZERO") == 0);
 
@@ -88,7 +88,7 @@ static size_t test_print_truncate(void) {
 	SymRef kappa = symbol_declare_const(ctx, "kappa", 0);
 
 	char buf[4];
-	print_symbol(ctx, kappa, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol(buf, sizeof(buf), ctx, kappa, PRINT_ASCII);
 
 	CHECK(strcmp(buf, "kap") == 0);
 
@@ -114,10 +114,10 @@ static size_t test_print_latex(void) {
 
 	char buf[64];
 
-	print_symbol(ctx, dK, PRINT_LATEX, buf, sizeof(buf));
+	print_symbol(buf, sizeof(buf), ctx, dK, PRINT_LATEX);
 	CHECK(strcmp(buf, "\\delta K^{i}{}_{a} field") == 0);
 
-	print_symbol(ctx, eps, PRINT_LATEX, buf, sizeof(buf));
+	print_symbol(buf, sizeof(buf), ctx, eps, PRINT_LATEX);
 	CHECK(strcmp(buf, "eps_{abc} const CONST_IN_SPACE") == 0);
 
 	ctx_destroy(ctx);
@@ -134,14 +134,14 @@ static size_t test_print_table(void) {
 
 	char buf[128];
 
-	print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol_table(buf, sizeof(buf), ctx, PRINT_ASCII);
 	CHECK(strcmp(buf, "") == 0);
 
 	SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);
 	SymRef p = symbol_declare_homog(ctx, "p", F_PHASE_SPACE);
 	CHECK(kappa.val != 0 && p.val != 0);
 
-	print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol_table(buf, sizeof(buf), ctx, PRINT_ASCII);
 	CHECK(strcmp(buf, "kappa const CONST_IN_SPACE|POSITIVE\n"
 					  "p homog CONST_IN_SPACE|PHASE_SPACE\n") == 0);
 
@@ -154,23 +154,23 @@ static size_t test_print_rational_ascii(void) {
 	size_t fails = 0;
 	char buf[64];
 
-	print_rational(rat_from_int(0), PRINT_ASCII, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), rat_from_int(0), PRINT_ASCII);
 	CHECK(strcmp(buf, "0") == 0);
 
-	print_rational(rat_from_int(7), PRINT_ASCII, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), rat_from_int(7), PRINT_ASCII);
 	CHECK(strcmp(buf, "7") == 0);
 
-	print_rational(rat_new(-1, 2), PRINT_ASCII, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), rat_new(-1, 2), PRINT_ASCII);
 	CHECK(strcmp(buf, "-1/2") == 0);
 
-	print_rational(rat_from_int(INT64_MIN), PRINT_ASCII, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), rat_from_int(INT64_MIN), PRINT_ASCII);
 	CHECK(strcmp(buf, "-9223372036854775808") == 0);
 
 	Rational largest = {.negative = false, .num = UINT64_MAX, .den = 1};
-	print_rational(largest, PRINT_ASCII, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), largest, PRINT_ASCII);
 	CHECK(strcmp(buf, "18446744073709551615") == 0);
 
-	print_rational(rat_new(-1, 2), PRINT_ASCII, buf, 3);
+	print_rational(buf, 3, rat_new(-1, 2), PRINT_ASCII);
 	CHECK(strcmp(buf, "-1") == 0);
 
 	return fails;
@@ -180,10 +180,10 @@ static size_t test_print_rational_latex(void) {
 	size_t fails = 0;
 	char buf[64];
 
-	print_rational(rat_from_int(3), PRINT_LATEX, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), rat_from_int(3), PRINT_LATEX);
 	CHECK(strcmp(buf, "3") == 0);
 
-	print_rational(rat_new(-1, 2), PRINT_LATEX, buf, sizeof(buf));
+	print_rational(buf, sizeof(buf), rat_new(-1, 2), PRINT_LATEX);
 	CHECK(strcmp(buf, "-\\frac{1}{2}") == 0);
 
 	return fails;

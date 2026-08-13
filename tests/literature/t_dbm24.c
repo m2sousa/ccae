@@ -131,7 +131,7 @@ static size_t test_dbm24_ascii(void) {
 	fails += declare_dbm24(ctx);
 
 	char buf[1024];
-	print_symbol_table(ctx, PRINT_ASCII, buf, sizeof(buf));
+	print_symbol_table(buf, sizeof(buf), ctx, PRINT_ASCII);
 
 	CHECK(strcmp(buf, "triad^a_i const CONST_IN_SPACE\n"
 					  "cotriad_a^i const CONST_IN_SPACE\n"
@@ -170,7 +170,7 @@ static size_t test_dbm24_latex(void) {
 	fails += declare_dbm24(ctx);
 
 	char buf[1024];
-	print_symbol_table(ctx, PRINT_LATEX, buf, sizeof(buf));
+	print_symbol_table(buf, sizeof(buf), ctx, PRINT_LATEX);
 
 	CHECK(strcmp(buf,
 				 "\\delta^{a}{}_{i} const CONST_IN_SPACE\n"

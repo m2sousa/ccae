@@ -23,7 +23,7 @@ static void put_rational(PrintBuffer* out, Rational r) {
 	constexpr size_t RATIONAL_LENGTH = 48;
 	char text[RATIONAL_LENGTH];
 
-	print_rational(r, PRINT_ASCII, text, sizeof(text));
+	print_rational(text, sizeof(text), r, PRINT_ASCII);
 	put_string(out, text);
 }
 
@@ -96,36 +96,36 @@ static void put_term_as_sexpr(PrintBuffer* out, const Context* ctx, Term term) {
 	put_char(out, ')');
 }
 
-void print_sexpr(const Context* ctx, ExprRef e, char* buf, size_t size) {
+void print_sexpr(char* out, size_t capacity, const Context* ctx, ExprRef e) {
 	if (e.val == 0 || e.val >= ctx->exprs.length)
 		die("CCAE (print_sexpr): expression handle out of range.");
 
-	if (size == 0)
+	if (capacity == 0)
 		return;
 
-	buf[0] = '\0';
+	out[0] = '\0';
 
-	PrintBuffer out = {.buf = buf, .size = size, .length = 0};
+	PrintBuffer buffer = {.buf = out, .capacity = capacity, .length = 0};
 	Expr expr = vec_at(ctx->exprs, e.val);
 
 	if (expr.nbr_term == 0) {
-		put_char(&out, '0');
+		put_char(&buffer, '0');
 		return;
 	}
 
 	if (expr.nbr_term == 1) {
-		put_term_as_sexpr(&out, ctx, expr.terms[0]);
+		put_term_as_sexpr(&buffer, ctx, expr.terms[0]);
 		return;
 	}
 
-	put_string(&out, "(+");
+	put_string(&buffer, "(+");
 
 	for (size_t i = 0; i < expr.nbr_term; ++i) {
-		put_char(&out, ' ');
-		put_term_as_sexpr(&out, ctx, expr.terms[i]);
+		put_char(&buffer, ' ');
+		put_term_as_sexpr(&buffer, ctx, expr.terms[i]);
 	}
 
-	put_char(&out, ')');
+	put_char(&buffer, ')');
 }
 
 typedef struct {

@@ -38,7 +38,7 @@ typedef Vec(Monomial) MonomialVec;
  * position.
  *
  * Example:
- *		`mono_have_same_free_indices(ctx, x_up_a, y_up_a)` is true. */
-bool mono_have_same_free_indices(const Context* ctx, MonoRef a, MonoRef b);
+ *		`mono_free_indices_equal(ctx, x_up_a, y_up_a)` is true. */
+bool mono_free_indices_equal(const Context* ctx, MonoRef a, MonoRef b);
 
 #endif

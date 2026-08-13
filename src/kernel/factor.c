@@ -64,7 +64,7 @@ static bool check_indices(Context* ctx, const Symbol* symbol,
 	return true;
 }
 
-static bool have_same_indices(const Index* a, const Index* b, u8 nbr_slot) {
+static bool indices_equal(const Index* a, const Index* b, u8 nbr_slot) {
 	for (u8 k = 0; k < nbr_slot; ++k) {
 		if (!index_equal(a[k], b[k]))
 			return false;
@@ -100,7 +100,7 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 							 fac.exponent.den == exponent.den;
 
 		if (fac.head.val == head.val && same_exponent &&
-			have_same_indices(fac.indices, indices, symbol->nbr_slot)) {
+			indices_equal(fac.indices, indices, symbol->nbr_slot)) {
 			FacRef found = {.val = (u32)i};
 			return found;
 		}

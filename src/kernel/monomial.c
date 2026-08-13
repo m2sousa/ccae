@@ -224,7 +224,7 @@ static bool check_and_build_dummies(Context* ctx, Monomial* mono) {
 	return true;
 }
 
-static bool have_same_factors(const Monomial* a, const Monomial* b) {
+static bool factors_equal(const Monomial* a, const Monomial* b) {
 	if (a->nbr_fac != b->nbr_fac)
 		return false;
 
@@ -271,7 +271,7 @@ MonoRef mono_intern(Context* ctx, const FacRef* facs, size_t nbr_fac) {
 
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 1; i < ctx->monomials.length; ++i) {
-		if (have_same_factors(&vec_at(ctx->monomials, i), &mono)) {
+		if (factors_equal(&vec_at(ctx->monomials, i), &mono)) {
 			MonoRef found = {.val = (u32)i};
 			return found;
 		}
@@ -376,10 +376,10 @@ static bool holds_occurrence(const Occurrence* occ, size_t nbr_occ,
 	return false;
 }
 
-bool mono_have_same_free_indices(const Context* ctx, MonoRef a, MonoRef b) {
+bool mono_free_indices_equal(const Context* ctx, MonoRef a, MonoRef b) {
 	if (a.val == 0 || a.val >= ctx->monomials.length || b.val == 0 ||
 		b.val >= ctx->monomials.length)
-		die("CCAE (mono_have_same_free_indices): monomial handle out of "
+		die("CCAE (mono_free_indices_equal): monomial handle out of "
 			"range.");
 
 	Occurrence occ_a[CCAE_MAX_INDICES];

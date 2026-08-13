@@ -9,8 +9,7 @@
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/monomial.h>
 
-static bool have_same_terms(const Expr* expr, const Term* terms,
-							size_t nbr_term) {
+static bool terms_equal(const Expr* expr, const Term* terms, size_t nbr_term) {
 	if (expr->nbr_term != nbr_term)
 		return false;
 
@@ -59,7 +58,7 @@ static size_t merge_terms(Term* terms, size_t nbr_term) {
 static ExprRef intern_terms(Context* ctx, const Term* terms, size_t nbr_term) {
 	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
 	for (size_t i = 1; i < ctx->exprs.length; ++i) {
-		if (have_same_terms(&vec_at(ctx->exprs, i), terms, nbr_term)) {
+		if (terms_equal(&vec_at(ctx->exprs, i), terms, nbr_term)) {
 			ExprRef found = {.val = (u32)i};
 			return found;
 		}
@@ -98,7 +97,7 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 		return intern_terms(ctx, NULL, 0);
 
 	for (size_t i = 1; i < nbr_term; ++i) {
-		if (!mono_have_same_free_indices(ctx, terms[0].mono, terms[i].mono)) {
+		if (!mono_free_indices_equal(ctx, terms[0].mono, terms[i].mono)) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
 					"expression: terms with different free indices.");
 			return null_ref;

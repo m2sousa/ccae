@@ -15,6 +15,11 @@ typedef struct {
 	SignedPerm generators[CCAE_MAX_GENERATORS];
 } Generators;
 
+typedef struct {
+	u16 nbr_perm;
+	SignedPerm perms[CCAE_MAX_ORBIT];
+} Orbit;
+
 /* Returns the signed permutation that moves no slot with sign +1.
  *
  * Example:
@@ -49,5 +54,12 @@ SignedPerm signed_perm_swap(u8 first, u8 second, i8 sign);
  *		`symmetry_check_and_read(&gens, ctx, "sym(0,1) antisym(2,3)", 4)` */
 [[nodiscard]] bool symmetry_check_and_read(Generators* out, Context* ctx,
 										   const char* symmetry, u8 nbr_slot);
+
+/* Builds into `out` the orbit of the generators `gens`.
+ * Dies if one permutation is reached with both signs.
+ *
+ * Example:
+ *		the generators of "antisym(0,1,2)" give an orbit of 6. */
+void symmetry_build_orbit(Orbit* out, const Generators* gens);
 
 #endif

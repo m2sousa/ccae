@@ -145,3 +145,52 @@ bool symmetry_check_and_read(Generators* out, Context* ctx,
 
 	return true;
 }
+
+static u16 find_image(const Orbit* orbit, SignedPerm wanted) {
+	for (u16 p = 0; p < orbit->nbr_perm; ++p) {
+		SignedPerm known = orbit->perms[p];
+
+		// HACK: This below line is mandatory to avoit having the identity with
+		// the opposite sign in some cases. This has been debugged by GPT for
+		// me, I do not understand it for now...
+		known.sign = wanted.sign;
+
+		if (signed_perm_equal(known, wanted))
+			// `wanted` has been found, returns the index.
+			return p;
+	}
+
+	return orbit->nbr_perm;
+}
+
+void symmetry_build_orbit(Orbit* out, const Generators* gens) {
+	// The identity is always in the orbit.
+	out->perms[0] = signed_perm_identity();
+	out->nbr_perm = 1;
+
+	// `out->nbr_perm` grows while it is walked!
+	for (u16 p = 0; p < out->nbr_perm; ++p) {
+		// Try every generator on the p-th permutation of the orbit.
+		for (u8 g = 0; g < gens->nbr_generator; ++g) {
+			SignedPerm candidate =
+				signed_perm_compose(gens->generators[g], out->perms[p]);
+			u16 position = find_image(out, candidate);
+
+			// Candidate found.
+			if (position < out->nbr_perm) {
+				if (out->perms[position].sign != candidate.sign)
+					die("CCAE (symmetry_build_orbit): a permutation with both "
+						"signs.");
+
+				continue;
+			}
+
+			if (out->nbr_perm == CCAE_MAX_ORBIT)
+				die("CCAE (symmetry_build_orbit): more than CCAE_MAX_ORBIT "
+					"permutations.");
+
+			out->perms[out->nbr_perm] = candidate;
+			out->nbr_perm += 1;
+		}
+	}
+}

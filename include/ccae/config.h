@@ -13,6 +13,12 @@ constexpr size_t CCAE_MAX_SLOT = 6;
 // A clause of n slots takes n - 1 generators, and clauses share no slot.
 constexpr size_t CCAE_MAX_GENERATORS = CCAE_MAX_SLOT - 1;
 
+// The largest orbit is one clause over every slot: CCAE_MAX_SLOT! signed
+// permutations.
+constexpr size_t CCAE_MAX_ORBIT = 720;
+static_assert(CCAE_MAX_SLOT == 6 && CCAE_MAX_ORBIT == 720,
+			  "CCAE_MAX_ORBIT must be CCAE_MAX_SLOT!.");
+
 // This represent a fixed number of factor to compose a monomial.
 // Therefore going higher in perturbation order would probably mean increasing
 // this constant. Evidently, it results in more memory usage.

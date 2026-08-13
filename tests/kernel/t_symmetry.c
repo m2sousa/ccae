@@ -9,6 +9,7 @@ static size_t test_symmetry_identity(void);
 static size_t test_symmetry_compose(void);
 static size_t test_symmetry_read(void);
 static size_t test_symmetry_bad_strings(void);
+static size_t test_symmetry_orbit(void);
 
 size_t test_symmetry(void) {
 	size_t fails = 0;
@@ -16,6 +17,7 @@ size_t test_symmetry(void) {
 	fails += test_symmetry_compose();
 	fails += test_symmetry_read();
 	fails += test_symmetry_bad_strings();
+	fails += test_symmetry_orbit();
 
 	return fails;
 }
@@ -117,6 +119,69 @@ static size_t test_symmetry_bad_strings(void) {
 	CHECK(fails_to_read(ctx, "sym(0,12)", 3));
 	CHECK(fails_to_read(ctx, "foo(0,1)", 2));
 	CHECK(fails_to_read(ctx, "sym(0,1)sym(2,3)", 4));
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool holds_perm(const Orbit* orbit, SignedPerm perm) {
+	for (u16 i = 0; i < orbit->nbr_perm; ++i) {
+		if (signed_perm_equal(orbit->perms[i], perm))
+			return true;
+	}
+
+	return false;
+}
+
+static Orbit orbit_of(Context* ctx, const char* symmetry, u8 nbr_slot) {
+	Generators gens = {.nbr_generator = 0};
+	Orbit orbit = {.nbr_perm = 0};
+
+	if (symmetry_check_and_read(&gens, ctx, symmetry, nbr_slot))
+		symmetry_build_orbit(&orbit, &gens);
+
+	return orbit;
+}
+
+static size_t test_symmetry_orbit(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	Orbit none = orbit_of(ctx, "", 2);
+	CHECK(none.nbr_perm == 1);
+	CHECK(signed_perm_equal(none.perms[0], signed_perm_identity()));
+
+	Orbit sym_01 = orbit_of(ctx, "sym(0,1)", 2);
+	CHECK(sym_01.nbr_perm == 2);
+	CHECK(holds_perm(&sym_01, signed_perm_swap(0, 1, 1)));
+
+	Orbit antisym_012 = orbit_of(ctx, "antisym(0,1,2)", 3);
+	SignedPerm cycle = {.image = {1, 2, 0, 3, 4, 5}, .sign = 1};
+	SignedPerm other_cycle = {.image = {2, 0, 1, 3, 4, 5}, .sign = 1};
+
+	CHECK(antisym_012.nbr_perm == 6);
+	CHECK(holds_perm(&antisym_012, signed_perm_identity()));
+	CHECK(holds_perm(&antisym_012, signed_perm_swap(0, 1, -1)));
+	CHECK(holds_perm(&antisym_012, signed_perm_swap(1, 2, -1)));
+	CHECK(holds_perm(&antisym_012, signed_perm_swap(0, 2, -1)));
+	CHECK(holds_perm(&antisym_012, cycle));
+	CHECK(holds_perm(&antisym_012, other_cycle));
+
+	Orbit product = orbit_of(ctx, "sym(0,1) antisym(2,3,4)", 5);
+	SignedPerm both = signed_perm_compose(signed_perm_swap(0, 1, 1),
+										  signed_perm_swap(2, 4, -1));
+
+	CHECK(product.nbr_perm == 12);
+	CHECK(holds_perm(&product, both));
+
+	Orbit full = orbit_of(ctx, "antisym(0,1,2,3,4,5)", 6);
+	CHECK(full.nbr_perm == CCAE_MAX_ORBIT);
 
 	CHECK(ctx_ok(ctx));
 

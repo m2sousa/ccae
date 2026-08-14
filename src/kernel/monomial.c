@@ -17,26 +17,26 @@ typedef struct {
 } Occurrence;
 
 // Orders factors by handle (head), then exponent, then indices slot by slot.
-static bool factor_comes_before(const Context* ctx, FacRef a, FacRef b) {
+static int factor_cmp(const Context* ctx, FacRef a, FacRef b) {
 	Factor fac_a = vec_at(ctx->factors, a.val);
 	Factor fac_b = vec_at(ctx->factors, b.val);
 
 	if (fac_a.head.val != fac_b.head.val)
-		return fac_a.head.val < fac_b.head.val;
+		return fac_a.head.val < fac_b.head.val ? -1 : 1;
 
 	int exponent_order = rat_cmp(fac_a.exponent, fac_b.exponent);
 	if (exponent_order != 0)
-		return exponent_order < 0;
+		return exponent_order;
 
 	u8 nbr_slot = vec_at(ctx->symbols, fac_a.head.val).nbr_slot;
 
 	for (u8 k = 0; k < nbr_slot; ++k) {
 		int index_order = index_cmp(fac_a.indices[k], fac_b.indices[k]);
 		if (index_order != 0)
-			return index_order < 0;
+			return index_order;
 	}
 
-	return false;
+	return 0;
 }
 
 static void sort_factors(const Context* ctx, Monomial* mono) {
@@ -45,7 +45,7 @@ static void sort_factors(const Context* ctx, Monomial* mono) {
 		FacRef current = mono->fac[i];
 		u64 j = i;
 
-		while (j > 0 && factor_comes_before(ctx, current, mono->fac[j - 1])) {
+		while (j > 0 && factor_cmp(ctx, current, mono->fac[j - 1]) < 0) {
 			mono->fac[j] = mono->fac[j - 1];
 			--j;
 		}

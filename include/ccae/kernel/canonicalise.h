@@ -3,8 +3,9 @@
 
 #include <ccae/kernel/fwd.h>
 
-/* Returns the canonical form of the monomial `m`, and sets `*sign` to +1 or -1
- * so that `m = *sign * result`.
+/* Returns the canonical form of the monomial `m`, and sets `*sign` to +1, -1 or
+ * 0 so that `m = *sign * result`. `*sign` is set to zero when indices
+ * permutation allow to reach the conclusion that `m = -m`.
  * Returns the null handle after an earlier error or dies on a bad handle.
  *
  * Example:

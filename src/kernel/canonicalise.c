@@ -156,16 +156,25 @@ MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
 	// Therefore, at first, the best entry is the one with identities applied.
 	build_arrangement(&best, ctx, tensors, tensor_perm_number, nbr_tensor);
 
+	bool equals_its_negative = false;
+
 	while (
 		next_tensor_perm_number(tensor_perm_number, ctx, tensors, nbr_tensor)) {
 		build_arrangement(&current, ctx, tensors, tensor_perm_number,
 						  nbr_tensor);
 
-		if (arrangement_cmp(&current, &best, nbr_index) < 0)
+		int order = arrangement_cmp(&current, &best, nbr_index);
+
+		if (order < 0) {
 			best = current;
+			equals_its_negative = false;
+		} else if (order == 0 && current.sign != best.sign) {
+			// Same arrangement of indices, but the other sign: x = -x.
+			equals_its_negative = true;
+		}
 	}
 
-	*sign = best.sign;
+	*sign = equals_its_negative ? 0 : best.sign;
 
 	return build_monomial(ctx, &mono, &best);
 }

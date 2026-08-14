@@ -15,11 +15,13 @@
 
 static size_t test_canonicalise_one_factor(void);
 static size_t test_canonicalise_dummies(void);
+static size_t test_canonicalise_zero(void);
 
 size_t test_canonicalise(void) {
 	size_t fails = 0;
 	fails += test_canonicalise_one_factor();
 	fails += test_canonicalise_dummies();
+	fails += test_canonicalise_zero();
 
 	return fails;
 }
@@ -121,6 +123,44 @@ static size_t test_canonicalise_dummies(void) {
 	CHECK(canonicalises_to(ctx, relabelled, canonical, 1));
 	CHECK(canonicalises_to(ctx, canonical, canonical, 1));
 	CHECK(sign == 1);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static int canonical_sign(Context* ctx, MonoRef m) {
+	int sign = 2;
+	MonoRef canonical = canon_mono(ctx, m, &sign);
+
+	return canonical.val != 0 ? sign : 2;
+}
+
+static size_t test_canonicalise_zero(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c",
+									   "antisym(0,1,2)", 0);
+	SymRef T =
+		symbol_declare_tensor(ctx, "T", SYM_FIELD, "^a^b", "sym(0,1)", 0);
+	SymRef A =
+		symbol_declare_tensor(ctx, "A", SYM_FIELD, "^a^b", "antisym(0,1)", 0);
+	SymRef S = symbol_declare_tensor(ctx, "S", SYM_FIELD, "^a^b", "", 0);
+	CHECK(spatial.val != 0 && ctx_ok(ctx));
+
+	// Antisymmetric slots b, c contracted with symmetric ones: zero.
+	CHECK(canonical_sign(ctx, two_factors(ctx, eps, "abc", T, "bc")) == 0);
+
+	// Antisymmetric with antisymmetric, or with no symmetry: not zero.
+	CHECK(canonical_sign(ctx, two_factors(ctx, eps, "abc", A, "bc")) == 1);
+	CHECK(canonical_sign(ctx, two_factors(ctx, eps, "abc", S, "bc")) == 1);
 
 	CHECK(ctx_ok(ctx));
 

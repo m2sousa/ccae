@@ -3,6 +3,7 @@
 
 #include <ccae/config.h>
 #include <ccae/core/error.h>
+#include <ccae/core/rational.h>
 #include <ccae/core/vec.h>
 #include <ccae/kernel/canonicalise.h>
 #include <ccae/kernel/context.h>
@@ -43,19 +44,22 @@ static void renumber_dummies(Index* indices, size_t nbr_index) {
 	}
 }
 
+// Place f holds the tensor factor `tensors[tensor_order[f]]`, rearranged by
+// the element `tensor_perm_number[f]` of its orbit.
 static void build_arrangement(Arrangement* out, const Context* ctx,
-							  const Factor* tensors,
+							  const Factor* tensors, const u8* tensor_order,
 							  const u16* tensor_perm_number,
 							  size_t nbr_tensor) {
 	size_t offset = 0;
 	out->sign = 1;
 
 	for (size_t f = 0; f < nbr_tensor; ++f) {
-		const Symbol* symbol = &vec_at(ctx->symbols, tensors[f].head.val);
+		const Factor* fac = &tensors[tensor_order[f]];
+		const Symbol* symbol = &vec_at(ctx->symbols, fac->head.val);
 		SignedPerm perm = symbol->orbit->perms[tensor_perm_number[f]];
 
 		for (u8 k = 0; k < symbol->nbr_slot; ++k)
-			out->indices[offset + perm.image[k]] = tensors[f].indices[k];
+			out->indices[offset + perm.image[k]] = fac->indices[k];
 
 		out->sign *= perm.sign;
 		offset += symbol->nbr_slot;
@@ -86,6 +90,68 @@ static bool next_tensor_perm_number(u16* tensor_perm_number, const Context* ctx,
 			return true;
 
 		tensor_perm_number[f] = 0;
+	}
+
+	return false;
+}
+
+static void reverse(u8* values, size_t first, size_t end) {
+	while (first + 1 < end) {
+		--end;
+
+		u8 kept = values[first];
+		values[first] = values[end];
+		values[end] = kept;
+
+		++first;
+	}
+}
+
+static bool are_identical(const Factor* a, const Factor* b) {
+	return a->head.val == b->head.val && rat_cmp(a->exponent, b->exponent) == 0;
+}
+
+// Moves `order[first .. end)` to its next permutation in dictionary order.
+// Returns false, back on the increasing order, after the last one.
+static bool next_permutation(u8* order, size_t first, size_t end) {
+	// Find the last place whose value is smaller than the next one's.
+	size_t pivot = end - 1;
+	while (pivot > first && order[pivot - 1] >= order[pivot])
+		--pivot;
+
+	if (pivot == first) {
+		reverse(order, first, end);
+		return false;
+	}
+
+	// Swap it with the last larger value, then sort what follows it.
+	size_t larger = end - 1;
+	while (order[larger] <= order[pivot - 1])
+		--larger;
+
+	u8 kept = order[pivot - 1];
+	order[pivot - 1] = order[larger];
+	order[larger] = kept;
+
+	reverse(order, pivot, end);
+
+	return true;
+}
+
+static bool next_tensor_order(u8* tensor_order, const Factor* tensors,
+							  size_t nbr_tensor) {
+	size_t first = 0;
+
+	while (first < nbr_tensor) {
+		size_t end = first + 1;
+		while (end < nbr_tensor &&
+			   are_identical(&tensors[first], &tensors[end]))
+			++end;
+
+		if (end - first > 1 && next_permutation(tensor_order, first, end))
+			return true;
+
+		first = end;
 	}
 
 	return false;
@@ -145,6 +211,13 @@ MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
 		nbr_index += nbr_slot;
 	}
 
+	// `tensor_order` is an array for which entry represents its position in the
+	// product. It starts with each entry being its read position in factors of
+	// the monomial.
+	u8 tensor_order[CCAE_MAX_FACTORS];
+	for (size_t f = 0; f < nbr_tensor; ++f)
+		tensor_order[f] = (u8)f;
+
 	// `tensor_perm_number` is an array for which entry represents an index of
 	// the signed permutation into the orbit of the factor. It starts with each
 	// entry being zero: all permutation being the identity (symbol->orbit[0] is
@@ -153,26 +226,30 @@ MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
 	Arrangement best = {};
 	Arrangement current = {};
 
-	// Therefore, at first, the best entry is the one with identities applied.
-	build_arrangement(&best, ctx, tensors, tensor_perm_number, nbr_tensor);
+	// Therefore, at first, the best entry is the one with identities applied
+	// and at their initial position.
+	build_arrangement(&best, ctx, tensors, tensor_order, tensor_perm_number,
+					  nbr_tensor);
 
 	bool equals_its_negative = false;
 
-	while (
-		next_tensor_perm_number(tensor_perm_number, ctx, tensors, nbr_tensor)) {
-		build_arrangement(&current, ctx, tensors, tensor_perm_number,
-						  nbr_tensor);
+	do {
+		do {
+			build_arrangement(&current, ctx, tensors, tensor_order,
+							  tensor_perm_number, nbr_tensor);
 
-		int order = arrangement_cmp(&current, &best, nbr_index);
+			int order = arrangement_cmp(&current, &best, nbr_index);
 
-		if (order < 0) {
-			best = current;
-			equals_its_negative = false;
-		} else if (order == 0 && current.sign != best.sign) {
-			// Same arrangement of indices, but the other sign: x = -x.
-			equals_its_negative = true;
-		}
-	}
+			if (order < 0) {
+				best = current;
+				equals_its_negative = false;
+			} else if (order == 0 && current.sign != best.sign) {
+				// Same arrangement of indices, but the other sign: x = -x.
+				equals_its_negative = true;
+			}
+		} while (next_tensor_perm_number(tensor_perm_number, ctx, tensors,
+										 nbr_tensor));
+	} while (next_tensor_order(tensor_order, tensors, nbr_tensor));
 
 	*sign = equals_its_negative ? 0 : best.sign;
 

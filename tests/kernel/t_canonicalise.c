@@ -11,17 +11,22 @@
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
+#include "t_kernel_utils.h"
 #include "t_utils.h"
 
 static size_t test_canonicalise_one_factor(void);
 static size_t test_canonicalise_dummies(void);
 static size_t test_canonicalise_zero(void);
+static size_t test_canonicalise_identical_factors(void);
+static size_t test_canonicalise_relabellings(void);
 
 size_t test_canonicalise(void) {
 	size_t fails = 0;
 	fails += test_canonicalise_one_factor();
 	fails += test_canonicalise_dummies();
 	fails += test_canonicalise_zero();
+	fails += test_canonicalise_identical_factors();
+	fails += test_canonicalise_relabellings();
 
 	return fails;
 }
@@ -161,6 +166,87 @@ static size_t test_canonicalise_zero(void) {
 	// Antisymmetric with antisymmetric, or with no symmetry: not zero.
 	CHECK(canonical_sign(ctx, two_factors(ctx, eps, "abc", A, "bc")) == 1);
 	CHECK(canonical_sign(ctx, two_factors(ctx, eps, "abc", S, "bc")) == 1);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_canonicalise_identical_factors(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
+	SymRef A =
+		symbol_declare_tensor(ctx, "A", SYM_FIELD, "_a_b", "antisym(0,1)", 0);
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "^a", "", 0);
+	SymRef y = symbol_declare_tensor(ctx, "y", SYM_FIELD, "^a", "", 0);
+	CHECK(spatial.val != 0 && ctx_ok(ctx));
+
+	// Swapping the two x is free, swapping A's slots costs -1: zero.
+	FacRef A_x_x[] = {with_names(ctx, A, "ab"), with_names(ctx, x, "a"),
+					  with_names(ctx, x, "b")};
+	CHECK(canonical_sign(ctx, mono_intern(ctx, A_x_x, 3)) == 0);
+
+	// x and y are not identical, so they cannot trade places.
+	FacRef A_x_y[] = {with_names(ctx, A, "ab"), with_names(ctx, x, "a"),
+					  with_names(ctx, y, "b")};
+	CHECK(canonical_sign(ctx, mono_intern(ctx, A_x_y, 3)) == 1);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+// The monomial dE dE dK dK, with two index names per factor in slot order:
+// "aibjjaib" is dE^a_i dE^b_j dK^j_a dK^i_b.
+static MonoRef four_factors(Context* ctx, SymRef dE, SymRef dK,
+							const char* names) {
+	FacRef facs[] = {with_free_indices(ctx, dE, names[0], names[1]),
+					 with_free_indices(ctx, dE, names[2], names[3]),
+					 with_free_indices(ctx, dK, names[4], names[5]),
+					 with_free_indices(ctx, dK, names[6], names[7])};
+
+	return mono_intern(ctx, facs, 4);
+}
+
+static size_t test_canonicalise_relabellings(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+
+	// dE^a_i dE^b_j dK^j_a dK^i_b: one loop through the four factors.
+	MonoRef loop = four_factors(ctx, dE, dK, "aibjjaib");
+	int sign = 0;
+	MonoRef canonical = canon_mono(ctx, loop, &sign);
+	CHECK(sign == 1);
+
+	// The same loop, written with other names or in another order.
+	CHECK(canonicalises_to(ctx, four_factors(ctx, dE, dK, "bjaiibja"),
+						   canonical, 1));
+	CHECK(canonicalises_to(ctx, four_factors(ctx, dE, dK, "ckdjjckd"),
+						   canonical, 1));
+	CHECK(canonicalises_to(ctx, four_factors(ctx, dE, dK, "ajbiiajb"),
+						   canonical, 1));
+
+	CHECK(canonicalises_to(ctx, canonical, canonical, 1));
+
+	// dE^a_i dE^b_j dK^i_a dK^j_b: two separate loops, a different monomial.
+	MonoRef two_loops = four_factors(ctx, dE, dK, "aibjiajb");
+	CHECK(canon_mono(ctx, two_loops, &sign).val != canonical.val);
 
 	CHECK(ctx_ok(ctx));
 

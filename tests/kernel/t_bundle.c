@@ -12,6 +12,7 @@ static size_t test_bundle_duplicate(void);
 static size_t test_bundle_empty_name(void);
 static size_t test_bundle_after_error(void);
 static size_t test_bundle_index_names(void);
+static size_t test_bundle_dim(void);
 
 size_t test_bundle(void) {
 	size_t fails = 0;
@@ -20,6 +21,7 @@ size_t test_bundle(void) {
 	fails += test_bundle_empty_name();
 	fails += test_bundle_after_error();
 	fails += test_bundle_index_names();
+	fails += test_bundle_dim();
 
 	return fails;
 }
@@ -31,8 +33,8 @@ static size_t test_bundle_declare(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn", 3);
 
 	CHECK(ctx_ok(ctx));
 	CHECK(spatial.val != 0);
@@ -51,8 +53,8 @@ static size_t test_bundle_duplicate(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef first = bundle_declare(ctx, "spatial", "abcdefgh");
-	BundleRef second = bundle_declare(ctx, "spatial", "abcdefgh");
+	BundleRef first = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	BundleRef second = bundle_declare(ctx, "spatial", "abcdefgh", 3);
 
 	CHECK(first.val != 0);
 	CHECK(second.val == 0);
@@ -74,7 +76,7 @@ static size_t test_bundle_empty_name(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef empty = bundle_declare(ctx, "", "abc");
+	BundleRef empty = bundle_declare(ctx, "", "abc", 3);
 
 	CHECK(empty.val == 0);
 	CHECK(ctx->err.code == CCAE_INVALID_ARG);
@@ -92,14 +94,14 @@ static size_t test_bundle_after_error(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef empty = bundle_declare(ctx, "", "abc");
-	BundleRef refused = bundle_declare(ctx, "spatial", "abcdefgh");
+	BundleRef empty = bundle_declare(ctx, "", "abc", 3);
+	BundleRef refused = bundle_declare(ctx, "spatial", "abcdefgh", 3);
 
 	CHECK(empty.val == 0);
 	CHECK(refused.val == 0);
 
 	ctx_clear_err(ctx);
-	BundleRef accepted = bundle_declare(ctx, "spatial", "abcdefgh");
+	BundleRef accepted = bundle_declare(ctx, "spatial", "abcdefgh", 3);
 
 	CHECK(accepted.val != 0);
 
@@ -115,26 +117,45 @@ static size_t test_bundle_index_names(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc", 3);
 
 	CHECK(bundle_find_by_index_name(ctx, 'b').val == spatial.val);
 	CHECK(bundle_find_by_index_name(ctx, 'z').val == 0);
 
-	CHECK(bundle_declare(ctx, "internal", "ija").val == 0);
+	CHECK(bundle_declare(ctx, "internal", "ija", 3).val == 0);
 	CHECK(strcmp(ctx->err.msg,
 				 "bundle 'internal': index name 'a' is already used.") == 0);
 	ctx_clear_err(ctx);
 
-	CHECK(bundle_declare(ctx, "internal", "").val == 0);
+	CHECK(bundle_declare(ctx, "internal", "", 3).val == 0);
 	ctx_clear_err(ctx);
 
-	CHECK(bundle_declare(ctx, "internal", "i^").val == 0);
+	CHECK(bundle_declare(ctx, "internal", "i^", 3).val == 0);
 	ctx_clear_err(ctx);
 
-	CHECK(bundle_declare(ctx, "internal", "iji").val == 0);
+	CHECK(bundle_declare(ctx, "internal", "iji", 3).val == 0);
 	ctx_clear_err(ctx);
 
-	CHECK(bundle_declare(ctx, "internal", "ijk").val != 0);
+	CHECK(bundle_declare(ctx, "internal", "ijk", 3).val != 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_bundle_dim(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	CHECK(spatial.val != 0);
+	CHECK(vec_at(ctx->bundles, spatial.val).dim == 3);
+
+	CHECK(bundle_declare(ctx, "internal", "ijk", 0).val == 0);
+	CHECK(!ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

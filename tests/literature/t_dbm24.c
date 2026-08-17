@@ -36,8 +36,8 @@ static bool with_latex(Context* ctx, SymRef sym, const char* latex) {
 static size_t declare_dbm24(Context* ctx) {
 	size_t fails = 0;
 
-	CHECK(bundle_declare(ctx, "spatial", "abcdefgh").val != 0);
-	CHECK(bundle_declare(ctx, "internal", "ijklmn").val != 0);
+	CHECK(bundle_declare(ctx, "spatial", "abcdefgh", 3).val != 0);
+	CHECK(bundle_declare(ctx, "internal", "ijklmn", 3).val != 0);
 
 	// Linking object, Levi-Civita and Kronecker tensors.
 	CHECK(with_latex(

@@ -69,7 +69,7 @@ static size_t test_canonicalise_one_factor(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
 	SymRef g =
 		symbol_declare_tensor(ctx, "g", SYM_FIELD, "_a_b", "sym(0,1)", 0);
 	SymRef A =
@@ -110,7 +110,7 @@ static size_t test_canonicalise_dummies(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
 	SymRef T =
 		symbol_declare_tensor(ctx, "T", SYM_FIELD, "_a_b", "sym(0,1)", 0);
 	SymRef S = symbol_declare_tensor(ctx, "S", SYM_FIELD, "^a^b", "", 0);
@@ -150,7 +150,7 @@ static size_t test_canonicalise_zero(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
 	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c",
 									   "antisym(0,1,2)", 0);
 	SymRef T =
@@ -181,7 +181,7 @@ static size_t test_canonicalise_identical_factors(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
 	SymRef A =
 		symbol_declare_tensor(ctx, "A", SYM_FIELD, "_a_b", "antisym(0,1)", 0);
 	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "^a", "", 0);

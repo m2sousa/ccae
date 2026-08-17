@@ -42,8 +42,8 @@ static Context* create_ctx_with_bundles(void) {
 	if (!ctx)
 		return NULL;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn", 3);
 
 	if (!spatial.val || !internal.val) {
 		ctx_destroy(ctx);
@@ -226,7 +226,7 @@ static size_t test_symbol_too_many_slots(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef small = bundle_declare(ctx, "small", "xy");
+	BundleRef small = bundle_declare(ctx, "small", "xy", 2);
 	CHECK(small.val != 0);
 
 	CHECK(symbol_declare_tensor(ctx, "A", SYM_FIELD, "_x_y", "", 0).val != 0);

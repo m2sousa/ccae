@@ -4,22 +4,26 @@
 #include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
 #include <ccae/kernel/fwd.h>
+#include <ccae/types.h>
 
 typedef struct {
 	StringRef name;
 	StringRef index_names;
+	u8 dim;
 } Bundle;
 
 typedef Vec(Bundle) BundleVec;
 
-/* Declares the bundle `name`, whose index names are the characters of
- * `index_names`. Sets `ctx->err` and returns the null handle on an empty or
- * taken name or index name, a non-letter, or an earlier error.
+/* Declares the bundle `name` of dimension `dim`, whose index names are the
+ * characters of `index_names`.
+ * Sets `ctx->err` and returns the null handle on
+ * an empty or taken name or index name, a non-letter, a `dim` of 0, or an
+ * earlier error.
  *
  * Example:
- *		`BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");` */
+ *		`BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);` */
 [[nodiscard]] BundleRef bundle_declare(Context* ctx, const char* name,
-									   const char* index_names);
+									   const char* index_names, u8 dim);
 
 /* Returns the bundle owning `index_name`, or the null handle.
  *

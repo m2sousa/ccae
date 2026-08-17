@@ -97,7 +97,7 @@ static size_t test_monomial_too_many(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc", 3);
 	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", "", 0);
 	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", "", 0);
 	FacRef dE_a =
@@ -169,7 +169,7 @@ static size_t test_monomial_tensors_stay(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc", 3);
 	SymRef dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "_a", "", 0);
 	FacRef dE_one =
 		factor_intern(ctx, dE, rat_from_int(1), (Index[]){{IDX_FREE, 'a'}});

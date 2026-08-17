@@ -8,8 +8,8 @@
 #include "t_kernel_utils.h"
 
 bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK) {
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijk");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijk", 3);
 	*dE = symbol_declare_tensor(ctx, "dE", SYM_FIELD, "^a_i", "", 0);
 	*dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);
 

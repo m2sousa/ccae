@@ -313,7 +313,7 @@ static size_t test_expr_free_indices(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc", 3);
 	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", "", 0);
 	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "^a", "", 0);
 	SymRef Z = symbol_declare_tensor(ctx, "Z", SYM_FIELD, "_a", "", 0);
@@ -360,7 +360,7 @@ static size_t test_expr_canonical(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc", 3);
 	SymRef A =
 		symbol_declare_tensor(ctx, "A", SYM_FIELD, "_a_b", "antisym(0,1)", 0);
 	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "^a", "", 0);

@@ -33,7 +33,7 @@ static bool check_index_names(Context* ctx, const char* name,
 }
 
 BundleRef bundle_declare(Context* ctx, const char* name,
-						 const char* index_names) {
+						 const char* index_names, u8 dim) {
 	BundleRef null_ref = {.val = 0};
 
 	if (!ctx_ok(ctx))
@@ -57,8 +57,15 @@ BundleRef bundle_declare(Context* ctx, const char* name,
 	if (!check_index_names(ctx, name, index_names))
 		return null_ref;
 
+	if (dim == 0) {
+		err_set(&ctx->err, CCAE_INVALID_ARG, "bundle '%s' has dimension 0.",
+				name);
+		return null_ref;
+	}
+
 	Bundle bundle = {.name = name_ref,
-					 .index_names = sp_intern(ctx->sp, index_names)};
+					 .index_names = sp_intern(ctx->sp, index_names),
+					 .dim = dim};
 	vec_append(ctx->perm, ctx->bundles, bundle);
 
 	BundleRef result = {.val = (u32)(ctx->bundles.length - 1)};

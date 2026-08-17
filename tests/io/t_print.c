@@ -38,8 +38,8 @@ static size_t test_print_tensor(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn", 3);
 	CHECK(spatial.val != 0 && internal.val != 0);
 
 	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "",
@@ -104,8 +104,8 @@ static size_t test_print_latex(void) {
 	if (!ctx)
 		return 1;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh");
-	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn");
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn", 3);
 	CHECK(spatial.val != 0 && internal.val != 0);
 
 	SymRef dK = symbol_declare_tensor(ctx, "dK", SYM_FIELD, "^i_a", "", 0);

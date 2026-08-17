@@ -21,8 +21,9 @@ typedef struct {
 typedef Vec(Expr) ExprVec;
 
 /* Returns the handle of the sum of the `nbr_term` terms at `terms`, in any
- * order, storing it the first time. Terms with the same monomial are
- * collected, and zero coefficients dropped: no term gives 0.
+ * order, storing it the first time. Each monomial is canonicalised, terms with
+ * the same monomial are collected, and zero coefficients dropped: no term
+ * gives 0.
  * Sets `ctx->err` and returns the null handle when two terms have different
  * free indices.
  * Sides: Sorts and collects `terms` in place.

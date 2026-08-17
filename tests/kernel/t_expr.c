@@ -21,6 +21,7 @@ static size_t test_expr_cancel(void);
 static size_t test_expr_mul(void);
 static size_t test_expr_scratch_reset(void);
 static size_t test_expr_free_indices(void);
+static size_t test_expr_canonical(void);
 
 size_t test_expr(void) {
 	size_t fails = 0;
@@ -32,6 +33,7 @@ size_t test_expr(void) {
 	fails += test_expr_mul();
 	fails += test_expr_scratch_reset();
 	fails += test_expr_free_indices();
+	fails += test_expr_canonical();
 
 	return fails;
 }
@@ -337,6 +339,52 @@ static size_t test_expr_free_indices(void) {
 	CHECK(expr_add(ctx, X_a, Y_b).val == 0);
 	CHECK(!ctx_ok(ctx));
 	ctx_clear_err(ctx);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static ExprRef antisym_term(Context* ctx, SymRef A, u16 first, u16 second) {
+	Index indices[] = {{IDX_FREE, first}, {IDX_FREE, second}};
+	FacRef fac = factor_intern(ctx, A, rat_from_int(1), indices);
+	MonoRef mono = mono_intern(ctx, &fac, 1);
+
+	return expr_intern(ctx, (Term[]){{rat_from_int(1), mono}}, 1);
+}
+
+static size_t test_expr_canonical(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abc");
+	SymRef A =
+		symbol_declare_tensor(ctx, "A", SYM_FIELD, "_a_b", "antisym(0,1)", 0);
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "^a", "", 0);
+	CHECK(spatial.val != 0 && ctx_ok(ctx));
+
+	ExprRef A_ab = antisym_term(ctx, A, 'a', 'b');
+	ExprRef A_ba = antisym_term(ctx, A, 'b', 'a');
+
+	// A_{ba} = -A_{ab}, so their sum is 0.
+	CHECK(A_ba.val == expr_neg(ctx, A_ab).val);
+	CHECK(vec_at(ctx->exprs, expr_add(ctx, A_ab, A_ba).val).nbr_term == 0);
+
+	// A_{ab} x^a x^b is zero, so the term is dropped.
+	FacRef facs[] = {
+		factor_intern(ctx, A, rat_from_int(1),
+					  (Index[]){{IDX_FREE, 'a'}, {IDX_FREE, 'b'}}),
+		factor_intern(ctx, x, rat_from_int(1), (Index[]){{IDX_FREE, 'a'}}),
+		factor_intern(ctx, x, rat_from_int(1), (Index[]){{IDX_FREE, 'b'}})};
+	MonoRef A_x_x = mono_intern(ctx, facs, 3);
+	ExprRef zero = expr_intern(ctx, (Term[]){{rat_from_int(1), A_x_x}}, 1);
+
+	CHECK(vec_at(ctx->exprs, zero.val).nbr_term == 0);
+
+	CHECK(ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

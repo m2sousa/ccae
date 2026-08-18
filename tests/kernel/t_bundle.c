@@ -4,6 +4,7 @@
 #include <ccae/core/error.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
+#include <ccae/kernel/symbol.h>
 
 #include "t_utils.h"
 
@@ -13,6 +14,7 @@ static size_t test_bundle_empty_name(void);
 static size_t test_bundle_after_error(void);
 static size_t test_bundle_index_names(void);
 static size_t test_bundle_dim(void);
+static size_t test_bundle_kronecker(void);
 
 size_t test_bundle(void) {
 	size_t fails = 0;
@@ -22,6 +24,7 @@ size_t test_bundle(void) {
 	fails += test_bundle_after_error();
 	fails += test_bundle_index_names();
 	fails += test_bundle_dim();
+	fails += test_bundle_kronecker();
 
 	return fails;
 }
@@ -156,6 +159,52 @@ static size_t test_bundle_dim(void) {
 
 	CHECK(bundle_declare(ctx, "internal", "ijk", 0).val == 0);
 	CHECK(!ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool kronecker_refused(Context* ctx, BundleRef bundle, SymRef sym) {
+	bundle_set_kronecker(ctx, bundle, sym);
+	bool refused = !ctx_ok(ctx);
+
+	ctx_clear_err(ctx);
+
+	return refused;
+}
+
+static size_t test_bundle_kronecker(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijk", 3);
+
+	SymRef delta =
+		symbol_declare_tensor(ctx, "delta", SYM_CONST, "^a_b", "", 0);
+	SymRef field = symbol_declare_tensor(ctx, "f", SYM_FIELD, "^a_b", "", 0);
+	SymRef both_up = symbol_declare_tensor(ctx, "u", SYM_CONST, "^a^b", "", 0);
+	SymRef down_up = symbol_declare_tensor(ctx, "w", SYM_CONST, "_a^b", "", 0);
+	SymRef mixed = symbol_declare_tensor(ctx, "m", SYM_CONST, "^a_i", "", 0);
+	SymRef one_slot = symbol_declare_tensor(ctx, "v", SYM_CONST, "^a", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(kronecker_refused(ctx, spatial, field));
+	CHECK(kronecker_refused(ctx, spatial, both_up));
+	CHECK(kronecker_refused(ctx, spatial, down_up));
+	CHECK(kronecker_refused(ctx, spatial, mixed));
+	CHECK(kronecker_refused(ctx, spatial, one_slot));
+	CHECK(kronecker_refused(ctx, internal, delta));
+
+	CHECK(!kronecker_refused(ctx, spatial, delta));
+	CHECK(vec_at(ctx->bundles, spatial.val).kronecker.val == delta.val);
+
+	// One delta per bundle.
+	CHECK(kronecker_refused(ctx, spatial, delta));
 
 	ctx_destroy(ctx);
 

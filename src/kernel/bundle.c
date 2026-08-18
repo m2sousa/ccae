@@ -5,6 +5,7 @@
 #include <ccae/core/vec.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
+#include <ccae/kernel/symbol.h>
 #include <ccae/utils.h>
 
 static bool check_index_names(Context* ctx, const char* name,
@@ -88,4 +89,53 @@ BundleRef bundle_find_by_index_name(const Context* ctx, char index_name) {
 	}
 
 	return found;
+}
+
+static bool reject_kronecker(Context* ctx, const Bundle* bundle,
+							 const char* problem) {
+	err_set(&ctx->err, CCAE_INVALID_ARG, "Kronecker delta of bundle '%s': %s.",
+			sp_get(ctx->sp, bundle->name), problem);
+
+	return false;
+}
+
+static bool check_kronecker(Context* ctx, const Bundle* bundle,
+							BundleRef bundle_ref, const Symbol* symbol) {
+	if (bundle->kronecker.val != 0)
+		return reject_kronecker(ctx, bundle, "already registered");
+
+	if (symbol->kind != SYM_CONST)
+		return reject_kronecker(ctx, bundle, "not a constant");
+
+	if (symbol->nbr_slot != 2)
+		return reject_kronecker(ctx, bundle, "not two slots");
+
+	bool in_bundle = symbol->slot_bundle[0].val == bundle_ref.val &&
+					 symbol->slot_bundle[1].val == bundle_ref.val;
+	if (!in_bundle)
+		return reject_kronecker(ctx, bundle, "a slot of another bundle");
+
+	bool up_then_down =
+		symbol->slot_pos[0] == SLOT_UP && symbol->slot_pos[1] == SLOT_DOWN;
+	if (!up_then_down)
+		return reject_kronecker(ctx, bundle, "slots not up then down");
+
+	return true;
+}
+
+void bundle_set_kronecker(Context* ctx, BundleRef bundle, SymRef sym) {
+	if (!ctx_ok(ctx))
+		return;
+
+	if (bundle.val == 0 || bundle.val >= ctx->bundles.length)
+		die("CCAE (bundle_set_kronecker): bundle handle out of range.");
+
+	if (sym.val == 0 || sym.val >= ctx->symbols.length)
+		die("CCAE (bundle_set_kronecker): symbol handle out of range.");
+
+	Bundle* target = &vec_at(ctx->bundles, bundle.val);
+	const Symbol* symbol = &vec_at(ctx->symbols, sym.val);
+
+	if (check_kronecker(ctx, target, bundle, symbol))
+		target->kronecker = sym;
 }

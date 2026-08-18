@@ -10,6 +10,7 @@ typedef struct {
 	StringRef name;
 	StringRef index_names;
 	u8 dim;
+	SymRef kronecker;
 } Bundle;
 
 typedef Vec(Bundle) BundleVec;
@@ -24,6 +25,15 @@ typedef Vec(Bundle) BundleVec;
  *		`BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);` */
 [[nodiscard]] BundleRef bundle_declare(Context* ctx, const char* name,
 									   const char* index_names, u8 dim);
+
+/* Registers `sym` as the Kronecker delta of `bundle`.
+ * Sets `ctx->err` when `sym` is not a constant with two slots of `bundle`, up
+ * then down, or when `bundle` already has one. Does nothing after an earlier
+ * error; dies on a bad handle.
+ *
+ * Example:
+ *		`bundle_set_kronecker(ctx, spatial, delta);` */
+void bundle_set_kronecker(Context* ctx, BundleRef bundle, SymRef sym);
 
 /* Returns the bundle owning `index_name`, or the null handle.
  *

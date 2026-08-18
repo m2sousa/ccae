@@ -25,6 +25,10 @@ static_assert(CCAE_MAX_SLOT == 6 && CCAE_MAX_ORBIT == 720,
 // Note that, the number of factor (Monomial->nbr_fac) at given time is a u64.
 constexpr size_t CCAE_MAX_FACTORS = 128;
 
+// Each pass of normalisation removes a factor or stops. This is a cap on steps:
+// two rules might undo each other, we avoid this via this constant.
+constexpr size_t CCAE_MAX_NORMALISE_PASSES = 2 * CCAE_MAX_FACTORS;
+
 // The most indices a monomial can hold: one per slot of each factor.
 constexpr size_t CCAE_MAX_INDICES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
 

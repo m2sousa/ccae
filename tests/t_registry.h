@@ -18,6 +18,7 @@
 	X(factor)                                                                  \
 	X(monomial)                                                                \
 	X(canonicalise)                                                            \
+	X(normalise)                                                               \
 	X(expr)                                                                    \
 	X(print)                                                                   \
 	X(sexpr)                                                                   \

@@ -5,10 +5,10 @@
 #include <ccae/core/error.h>
 #include <ccae/core/rational.h>
 #include <ccae/core/vec.h>
-#include <ccae/kernel/canonicalise.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/monomial.h>
+#include <ccae/kernel/normalise.h>
 
 static bool terms_equal(const Expr* expr, const Term* terms, size_t nbr_term) {
 	if (expr->nbr_term != nbr_term)
@@ -106,13 +106,9 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 	}
 
 	for (size_t i = 0; i < nbr_term; ++i) {
-		int sign = 0;
-		MonoRef canonical = canon_mono(ctx, terms[i].mono, &sign);
-		if (canonical.val == 0)
+		terms[i] = normalise_term(ctx, terms[i]);
+		if (terms[i].mono.val == 0)
 			return null_ref;
-
-		terms[i].coef = rat_mul(terms[i].coef, rat_from_int(sign));
-		terms[i].mono = canonical;
 	}
 
 	qsort(terms, nbr_term, sizeof(Term), compare_by_monomial);

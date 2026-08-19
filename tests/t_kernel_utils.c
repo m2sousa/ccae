@@ -1,3 +1,7 @@
+#include <stddef.h>
+#include <string.h>
+
+#include <ccae/config.h>
 #include <ccae/core/rational.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
@@ -20,8 +24,11 @@ FacRef with_indices(Context* ctx, SymRef head, Index first, Index second) {
 	return factor_intern(ctx, head, rat_from_int(1), (Index[]){first, second});
 }
 
-FacRef with_free_indices(Context* ctx, SymRef head, char first, char second) {
-	Index indices[] = {{IDX_FREE, (u16)first}, {IDX_FREE, (u16)second}};
+FacRef with_free_indices(Context* ctx, SymRef head, const char* names) {
+	Index indices[CCAE_MAX_SLOT] = {};
+
+	for (size_t k = 0; k < strlen(names); ++k)
+		indices[k] = (Index){IDX_FREE, (u16)names[k]};
 
 	return factor_intern(ctx, head, rat_from_int(1), indices);
 }

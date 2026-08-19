@@ -344,11 +344,11 @@ static size_t test_sexpr_print_indices(void) {
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
-	FacRef dE_ai = with_free_indices(ctx, dE, 'a', 'i');
-	FacRef dE_aj = with_free_indices(ctx, dE, 'a', 'j');
-	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
-	FacRef dK_jb = with_free_indices(ctx, dK, 'j', 'b');
-	FacRef dK_ic = with_free_indices(ctx, dK, 'i', 'c');
+	FacRef dE_ai = with_free_indices(ctx, dE, "ai");
+	FacRef dE_aj = with_free_indices(ctx, dE, "aj");
+	FacRef dK_ib = with_free_indices(ctx, dK, "ib");
+	FacRef dK_jb = with_free_indices(ctx, dK, "jb");
+	FacRef dK_ic = with_free_indices(ctx, dK, "ic");
 
 	ExprRef single = intern_product(ctx, (FacRef[]){dE_ai}, 1);
 	ExprRef with_scalar = intern_product(ctx, (FacRef[]){x_one, dE_ai}, 2);
@@ -383,8 +383,8 @@ static size_t test_sexpr_read_indices(void) {
 	SymRef dK = {0};
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
-	FacRef dE_ai = with_free_indices(ctx, dE, 'a', 'i');
-	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
+	FacRef dE_ai = with_free_indices(ctx, dE, "ai");
+	FacRef dK_ib = with_free_indices(ctx, dK, "ib");
 
 	ExprRef single = intern_product(ctx, (FacRef[]){dE_ai}, 1);
 	ExprRef by_i = intern_product(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
@@ -446,8 +446,8 @@ static size_t test_sexpr_read_dummies(void) {
 	SymRef dK = {0};
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
-	FacRef dE_ai = with_free_indices(ctx, dE, 'a', 'i');
-	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
+	FacRef dE_ai = with_free_indices(ctx, dE, "ai");
+	FacRef dK_ib = with_free_indices(ctx, dK, "ib");
 
 	ExprRef by_i = intern_product(ctx, (FacRef[]){dE_ai, dK_ib}, 2);
 	CHECK(ctx_ok(ctx));
@@ -462,7 +462,7 @@ static size_t test_sexpr_read_dummies(void) {
 	CHECK(round_trips(ctx, "(* dE^a_$0 dK^i_c dK^$0_b)"));
 
 	// dE^a_i dE^b_j dK^i_b: `i` and `b` are both dummies.
-	FacRef dE_bj = with_free_indices(ctx, dE, 'b', 'j');
+	FacRef dE_bj = with_free_indices(ctx, dE, "bj");
 	ExprRef two_dummies =
 		intern_product(ctx, (FacRef[]){dE_ai, dE_bj, dK_ib}, 3);
 	CHECK(ctx_ok(ctx));

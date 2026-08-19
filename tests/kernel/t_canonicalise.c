@@ -1,7 +1,5 @@
 #include <stddef.h>
-#include <string.h>
 
-#include <ccae/config.h>
 #include <ccae/core/rational.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/canonicalise.h>
@@ -31,25 +29,16 @@ size_t test_canonicalise(void) {
 	return fails;
 }
 
-static FacRef with_names(Context* ctx, SymRef head, const char* names) {
-	Index indices[CCAE_MAX_SLOT] = {};
-
-	for (size_t k = 0; k < strlen(names); ++k)
-		indices[k] = (Index){IDX_FREE, (u16)names[k]};
-
-	return factor_intern(ctx, head, rat_from_int(1), indices);
-}
-
 static MonoRef one_factor(Context* ctx, SymRef head, const char* names) {
-	FacRef fac = with_names(ctx, head, names);
+	FacRef fac = with_free_indices(ctx, head, names);
 
 	return mono_intern(ctx, &fac, 1);
 }
 
 static MonoRef two_factors(Context* ctx, SymRef first, const char* first_names,
 						   SymRef second, const char* second_names) {
-	FacRef facs[] = {with_names(ctx, first, first_names),
-					 with_names(ctx, second, second_names)};
+	FacRef facs[] = {with_free_indices(ctx, first, first_names),
+					 with_free_indices(ctx, second, second_names)};
 
 	return mono_intern(ctx, facs, 2);
 }
@@ -189,13 +178,15 @@ static size_t test_canonicalise_identical_factors(void) {
 	CHECK(spatial.val != 0 && ctx_ok(ctx));
 
 	// Swapping the two x is free, swapping A's slots costs -1: zero.
-	FacRef A_x_x[] = {with_names(ctx, A, "ab"), with_names(ctx, x, "a"),
-					  with_names(ctx, x, "b")};
+	FacRef A_x_x[] = {with_free_indices(ctx, A, "ab"),
+					  with_free_indices(ctx, x, "a"),
+					  with_free_indices(ctx, x, "b")};
 	CHECK(canonical_sign(ctx, mono_intern(ctx, A_x_x, 3)) == 0);
 
 	// x and y are not identical, so they cannot trade places.
-	FacRef A_x_y[] = {with_names(ctx, A, "ab"), with_names(ctx, x, "a"),
-					  with_names(ctx, y, "b")};
+	FacRef A_x_y[] = {with_free_indices(ctx, A, "ab"),
+					  with_free_indices(ctx, x, "a"),
+					  with_free_indices(ctx, y, "b")};
 	CHECK(canonical_sign(ctx, mono_intern(ctx, A_x_y, 3)) == 1);
 
 	CHECK(ctx_ok(ctx));
@@ -205,14 +196,14 @@ static size_t test_canonicalise_identical_factors(void) {
 	return fails;
 }
 
-// The monomial dE dE dK dK, with two index names per factor in slot order:
-// "aibjjaib" is dE^a_i dE^b_j dK^j_a dK^i_b.
+// The monomial dE dE dK dK, given the index names of each factor:
+// "ai", "bj", "ja", "ib" gives dE^a_i dE^b_j dK^j_a dK^i_b.
 static MonoRef four_factors(Context* ctx, SymRef dE, SymRef dK,
-							const char* names) {
-	FacRef facs[] = {with_free_indices(ctx, dE, names[0], names[1]),
-					 with_free_indices(ctx, dE, names[2], names[3]),
-					 with_free_indices(ctx, dK, names[4], names[5]),
-					 with_free_indices(ctx, dK, names[6], names[7])};
+							const char* first, const char* second,
+							const char* third, const char* fourth) {
+	FacRef facs[] = {
+		with_free_indices(ctx, dE, first), with_free_indices(ctx, dE, second),
+		with_free_indices(ctx, dK, third), with_free_indices(ctx, dK, fourth)};
 
 	return mono_intern(ctx, facs, 4);
 }
@@ -229,23 +220,23 @@ static size_t test_canonicalise_relabellings(void) {
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	// dE^a_i dE^b_j dK^j_a dK^i_b: one loop through the four factors.
-	MonoRef loop = four_factors(ctx, dE, dK, "aibjjaib");
+	MonoRef loop = four_factors(ctx, dE, dK, "ai", "bj", "ja", "ib");
 	int sign = 0;
 	MonoRef canonical = canon_mono(ctx, loop, &sign);
 	CHECK(sign == 1);
 
 	// The same loop, written with other names or in another order.
-	CHECK(canonicalises_to(ctx, four_factors(ctx, dE, dK, "bjaiibja"),
-						   canonical, 1));
-	CHECK(canonicalises_to(ctx, four_factors(ctx, dE, dK, "ckdjjckd"),
-						   canonical, 1));
-	CHECK(canonicalises_to(ctx, four_factors(ctx, dE, dK, "ajbiiajb"),
-						   canonical, 1));
+	CHECK(canonicalises_to(
+		ctx, four_factors(ctx, dE, dK, "bj", "ai", "ib", "ja"), canonical, 1));
+	CHECK(canonicalises_to(
+		ctx, four_factors(ctx, dE, dK, "ck", "dj", "jc", "kd"), canonical, 1));
+	CHECK(canonicalises_to(
+		ctx, four_factors(ctx, dE, dK, "aj", "bi", "ia", "jb"), canonical, 1));
 
 	CHECK(canonicalises_to(ctx, canonical, canonical, 1));
 
 	// dE^a_i dE^b_j dK^i_a dK^j_b: two separate loops, a different monomial.
-	MonoRef two_loops = four_factors(ctx, dE, dK, "aibjiajb");
+	MonoRef two_loops = four_factors(ctx, dE, dK, "ai", "bj", "ia", "jb");
 	CHECK(canon_mono(ctx, two_loops, &sign).val != canonical.val);
 
 	CHECK(ctx_ok(ctx));

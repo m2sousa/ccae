@@ -387,8 +387,8 @@ static size_t test_monomial_content_order(void) {
 	CHECK(declare_canonical_pair(ctx, &dE, &dK));
 
 	// dK^j_a is interned first, so it has the smaller handle.
-	FacRef dK_ja = with_free_indices(ctx, dK, 'j', 'a');
-	FacRef dK_ib = with_free_indices(ctx, dK, 'i', 'b');
+	FacRef dK_ja = with_free_indices(ctx, dK, "ja");
+	FacRef dK_ib = with_free_indices(ctx, dK, "ib");
 	CHECK(dK_ja.val < dK_ib.val);
 
 	// Same head dK: the first index decides, therefore i comes before j.

@@ -1,7 +1,5 @@
 #include <stddef.h>
-#include <string.h>
 
-#include <ccae/config.h>
 #include <ccae/core/rational.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
@@ -12,6 +10,7 @@
 #include <ccae/kernel/normalise.h>
 #include <ccae/kernel/symbol.h>
 
+#include "t_kernel_utils.h"
 #include "t_utils.h"
 
 static size_t test_normalise_absorb(void);
@@ -25,15 +24,6 @@ size_t test_normalise(void) {
 	fails += test_normalise_free_delta();
 
 	return fails;
-}
-
-static FacRef with_names(Context* ctx, SymRef head, const char* names) {
-	Index indices[CCAE_MAX_SLOT] = {};
-
-	for (size_t k = 0; k < strlen(names); ++k)
-		indices[k] = (Index){IDX_FREE, (u16)names[k]};
-
-	return factor_intern(ctx, head, rat_from_int(1), indices);
 }
 
 static Context* create_ctx_with_delta(SymRef* delta) {
@@ -72,17 +62,19 @@ static size_t test_normalise_absorb(void) {
 	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^a", "", 0);
 	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "_a", "", 0);
 
-	FacRef X_a = with_names(ctx, X, "a");
+	FacRef X_a = with_free_indices(ctx, X, "a");
 	MonoRef X_up_a = mono_intern(ctx, &X_a, 1);
 
 	// δ^a_b δ^b_c X^c = X^a.
-	FacRef chain[] = {with_names(ctx, delta, "ab"),
-					  with_names(ctx, delta, "bc"), with_names(ctx, X, "c")};
+	FacRef chain[] = {with_free_indices(ctx, delta, "ab"),
+					  with_free_indices(ctx, delta, "bc"),
+					  with_free_indices(ctx, X, "c")};
 	CHECK(normalises_to(ctx, mono_intern(ctx, chain, 3), 1, X_up_a));
 
 	// δ^a_b Y_a = Y_b.
-	FacRef Y_b = with_names(ctx, Y, "b");
-	FacRef lowered[] = {with_names(ctx, delta, "ab"), with_names(ctx, Y, "a")};
+	FacRef Y_b = with_free_indices(ctx, Y, "b");
+	FacRef lowered[] = {with_free_indices(ctx, delta, "ab"),
+						with_free_indices(ctx, Y, "a")};
 	CHECK(normalises_to(ctx, mono_intern(ctx, lowered, 2), 1,
 						mono_intern(ctx, &Y_b, 1)));
 
@@ -104,12 +96,12 @@ static size_t test_normalise_trace(void) {
 	MonoRef one = mono_intern(ctx, NULL, 0);
 
 	// δ^a_a = 3, the dimension of the bundle.
-	FacRef trace = with_names(ctx, delta, "aa");
+	FacRef trace = with_free_indices(ctx, delta, "aa");
 	CHECK(normalises_to(ctx, mono_intern(ctx, &trace, 1), 3, one));
 
 	// δ^a_b δ^b_a = δ^a_a = 3.
-	FacRef loop[] = {with_names(ctx, delta, "ab"),
-					 with_names(ctx, delta, "ba")};
+	FacRef loop[] = {with_free_indices(ctx, delta, "ab"),
+					 with_free_indices(ctx, delta, "ba")};
 	CHECK(normalises_to(ctx, mono_intern(ctx, loop, 2), 3, one));
 
 	CHECK(ctx_ok(ctx));
@@ -128,7 +120,7 @@ static size_t test_normalise_free_delta(void) {
 		return 1;
 
 	// Both indices free: nothing to absorb.
-	FacRef delta_ab = with_names(ctx, delta, "ab");
+	FacRef delta_ab = with_free_indices(ctx, delta, "ab");
 	MonoRef free_delta = mono_intern(ctx, &delta_ab, 1);
 	CHECK(normalises_to(ctx, free_delta, 1, free_delta));
 

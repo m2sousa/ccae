@@ -17,11 +17,11 @@ bool declare_canonical_pair(Context* ctx, SymRef* dE, SymRef* dK);
  *		`with_indices(ctx, dE, a, d0)` is `dE^a_$0`. */
 FacRef with_indices(Context* ctx, SymRef head, Index first, Index second);
 
-/* Returns the factor `head` with exponent 1 and two free indices, given by
- * their index names.
+/* Returns the factor `head` with exponent 1 and free indices, one index name
+ * per slot.
  *
  * Example:
- *		`with_free_indices(ctx, dE, 'a', 'i')` is `dE^a_i`. */
-FacRef with_free_indices(Context* ctx, SymRef head, char first, char second);
+ *		`with_free_indices(ctx, dE, "ai")` is `dE^a_i`. */
+FacRef with_free_indices(Context* ctx, SymRef head, const char* names);
 
 #endif

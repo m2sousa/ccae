@@ -16,12 +16,14 @@
 static size_t test_normalise_absorb(void);
 static size_t test_normalise_trace(void);
 static size_t test_normalise_free_delta(void);
+static size_t test_normalise_epsilon_symmetric(void);
 
 size_t test_normalise(void) {
 	size_t fails = 0;
 	fails += test_normalise_absorb();
 	fails += test_normalise_trace();
 	fails += test_normalise_free_delta();
+	fails += test_normalise_epsilon_symmetric();
 
 	return fails;
 }
@@ -123,6 +125,47 @@ static size_t test_normalise_free_delta(void) {
 	FacRef delta_ab = with_free_indices(ctx, delta, "ab");
 	MonoRef free_delta = mono_intern(ctx, &delta_ab, 1);
 	CHECK(normalises_to(ctx, free_delta, 1, free_delta));
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_normalise_epsilon_symmetric(void) {
+	size_t fails = 0;
+
+	SymRef delta = {0};
+	Context* ctx = create_ctx_with_delta(&delta);
+	if (!ctx)
+		return 1;
+
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_a_b_c",
+									   "antisym(0,1,2)", 0);
+	SymRef S =
+		symbol_declare_tensor(ctx, "S", SYM_FIELD, "^a^b", "sym(0,1)", 0);
+	SymRef A = symbol_declare_tensor(ctx, "A", SYM_FIELD, "^a^b", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	// ε_{abc} S^{ab} = 0: swapping a and b gives back the same term, negated.
+	FacRef eps_S[] = {with_free_indices(ctx, eps, "abc"),
+					  with_free_indices(ctx, S, "ab")};
+	MonoRef contracted = mono_intern(ctx, eps_S, 2);
+
+	Term term = normalise_term(ctx, (Term){rat_from_int(1), contracted});
+	CHECK(rat_is_zero(term.coef));
+
+	ExprRef empty = expr_intern(ctx, NULL, 0);
+	Term terms[] = {{rat_from_int(1), contracted}};
+	CHECK(expr_intern(ctx, terms, 1).val == empty.val);
+
+	// A has no symmetry: ε_{abc} A^{ab} stays.
+	FacRef eps_A[] = {with_free_indices(ctx, eps, "abc"),
+					  with_free_indices(ctx, A, "ab")};
+	term = normalise_term(ctx,
+						  (Term){rat_from_int(1), mono_intern(ctx, eps_A, 2)});
+	CHECK(!rat_is_zero(term.coef));
 
 	CHECK(ctx_ok(ctx));
 

@@ -10,11 +10,11 @@
 #include <ccae/core/error.h>
 #include <ccae/types.h>
 
-typedef struct ArenaNode_s {
-	struct ArenaNode_s* next;
+struct ArenaNode_s {
+	ArenaNode* next;
 	size_t used, capacity;
 	alignas(max_align_t) u8 data[];
-} ArenaNode;
+};
 
 struct Arena {
 	ArenaNode* head;
@@ -115,6 +115,34 @@ void arena_reset(Arena* a) {
 	a->head->next = NULL;
 	a->head->used = 0;
 	a->current = a->head;
+}
+
+ArenaMark arena_save(const Arena* a) {
+	ArenaMark mark = {.node = a->current, .used = 0};
+
+	if (a->current)
+		mark.used = a->current->used;
+
+	return mark;
+}
+
+void arena_restore(Arena* a, ArenaMark mark) {
+	if (!mark.node) {
+		arena_reset(a);
+		return;
+	}
+
+	ArenaNode* node = mark.node->next;
+
+	while (node) {
+		ArenaNode* next = node->next;
+		free(node);
+		node = next;
+	}
+
+	mark.node->next = NULL;
+	mark.node->used = mark.used;
+	a->current = mark.node;
 }
 
 void arena_destroy(Arena* a) {

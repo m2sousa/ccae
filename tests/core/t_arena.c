@@ -11,6 +11,7 @@ static size_t test_arena_alignment(void);
 static size_t test_arena_large(void);
 static size_t test_arena_zero_size(void);
 static size_t test_arena_reset(void);
+static size_t test_arena_restore(void);
 
 size_t test_arena(void) {
 	size_t fails = 0;
@@ -18,6 +19,7 @@ size_t test_arena(void) {
 	fails += test_arena_large();
 	fails += test_arena_zero_size();
 	fails += test_arena_reset();
+	fails += test_arena_restore();
 
 	return fails;
 }
@@ -115,6 +117,39 @@ static size_t test_arena_reset(void) {
 	CHECK(big != NULL);
 	arena_reset(a);
 	CHECK(arena_alloc(a, u64) == first);
+
+	arena_destroy(a);
+
+	return fails;
+}
+
+static size_t test_arena_restore(void) {
+	constexpr size_t BIG_SIZE = CCAE_ARENA_NODE_CAP + 1;
+	size_t fails = 0;
+
+	Arena* a = arena_create();
+	if (!a)
+		return 1;
+
+	// A mark taken before the first allocation.
+	ArenaMark empty = arena_save(a);
+	u64* first = arena_alloc(a, u64);
+	arena_restore(a, empty);
+	CHECK(arena_alloc(a, u64) == first);
+
+	u64* kept = arena_alloc(a, u64);
+	*kept = 42;
+
+	ArenaMark mark = arena_save(a);
+	u64* after_mark = arena_alloc(a, u64);
+
+	// Opens a new block, freed by the restore.
+	u8* big = arena_alloc_array(a, u8, BIG_SIZE);
+	CHECK(big != NULL);
+
+	arena_restore(a, mark);
+	CHECK(arena_alloc(a, u64) == after_mark);
+	CHECK(*kept == 42);
 
 	arena_destroy(a);
 

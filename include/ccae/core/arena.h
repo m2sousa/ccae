@@ -4,6 +4,12 @@
 #include <stddef.h>
 
 typedef struct Arena Arena;
+typedef struct ArenaNode_s ArenaNode;
+
+typedef struct {
+	ArenaNode* node;
+	size_t used;
+} ArenaMark;
 
 /* Creates an `Arena`. Returns `NULL` on failed allocation.
  *
@@ -17,6 +23,18 @@ void arena_destroy(Arena* a);
  * Example:
  *		`arena_reset(ctx->scratch);` */
 void arena_reset(Arena* a);
+
+/* Returns a mark of the current position of `a`.
+ *
+ * Example:
+ *		`ArenaMark mark = arena_save(ctx->scratch);` */
+[[nodiscard]] ArenaMark arena_save(const Arena* a);
+
+/* Frees everything allocated in `a` after `mark` and keeps what came before.
+ *
+ * Example:
+ *		`arena_restore(ctx->scratch, mark);` */
+void arena_restore(Arena* a, ArenaMark mark);
 
 /* Allocates `size` bytes aligned to `alignment`, not zeroed. `alignment` is a
  * power of two up to `alignof(max_align_t)`, else dies. Returns `NULL` on

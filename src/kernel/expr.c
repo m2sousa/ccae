@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ccae/config.h>
 #include <ccae/core/arena.h>
 #include <ccae/core/error.h>
 #include <ccae/core/rational.h>
@@ -107,16 +108,19 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 
 	ArenaMark mark = arena_save(ctx->scratch);
 
-	Term* normalised = arena_alloc_array(ctx->scratch, Term, nbr_term);
+	// Some terms might normalise to multiple terms, therefore some
+	// room is allocated beforehand.
+	size_t capacity = nbr_term + CCAE_MAX_NORMALISED_TERMS;
+
+	Term* normalised = arena_alloc_array(ctx->scratch, Term, capacity);
 	if (!normalised)
 		die("CCAE (expr_intern): out of memory.");
 
-	size_t nbr_normalised = 0;
+	size_t offset = 0;
 
 	for (size_t i = 0; i < nbr_term; ++i) {
-		nbr_normalised +=
-			normalise_term(&normalised[nbr_normalised],
-						   nbr_term - nbr_normalised, ctx, terms[i]);
+		offset += normalise_term(&normalised[offset], capacity - offset, ctx,
+								 terms[i]);
 
 		if (!ctx_ok(ctx)) {
 			arena_restore(ctx->scratch, mark);
@@ -124,9 +128,9 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 		}
 	}
 
-	qsort(normalised, nbr_normalised, sizeof(Term), compare_by_monomial);
+	qsort(normalised, offset, sizeof(Term), compare_by_monomial);
 
-	size_t nbr_kept = merge_terms(normalised, nbr_normalised);
+	size_t nbr_kept = merge_terms(normalised, offset);
 	ExprRef result = intern_terms(ctx, normalised, nbr_kept);
 
 	arena_restore(ctx->scratch, mark);

@@ -12,6 +12,7 @@
 #include <ccae/kernel/monomial.h>
 #include <ccae/kernel/normalise.h>
 #include <ccae/kernel/symbol.h>
+#include <ccae/kernel/symmetry.h>
 
 static bool is_kronecker(const Context* ctx, const Factor* fac) {
 	const Symbol* symbol = &vec_at(ctx->symbols, fac->head.val);
@@ -97,6 +98,112 @@ static bool absorb_kronecker(Term* term, Context* ctx) {
 	return false;
 }
 
+// FIXME: This might be deleted once metrics are introduced and eps_down/_up are
+// removed for a single eps.
+typedef struct {
+	size_t eps_down;
+	size_t eps_up;
+} EpsilonPair;
+
+static bool share_dummy(const Factor* a, const Factor* b, u8 nbr_slot) {
+	for (u8 k = 0; k < nbr_slot; ++k) {
+		if (a->indices[k].kind != IDX_DUMMY)
+			continue;
+
+		for (u8 l = 0; l < nbr_slot; ++l) {
+			if (index_equal(a->indices[k], b->indices[l]))
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static bool check_and_find_epsilon_pair(EpsilonPair* out, const Context* ctx,
+										const Monomial* mono) {
+	for (u64 i = 0; i < mono->nbr_fac; ++i) {
+		Factor eps_down = vec_at(ctx->factors, mono->fac[i].val);
+		const Symbol* symbol = &vec_at(ctx->symbols, eps_down.head.val);
+		if (symbol->nbr_slot == 0)
+			continue;
+
+		const Bundle* bundle =
+			&vec_at(ctx->bundles, symbol->slot_bundle[0].val);
+		if (bundle->eps_down.val != eps_down.head.val ||
+			bundle->kronecker.val == 0)
+			continue;
+
+		for (u64 j = 0; j < mono->nbr_fac; ++j) {
+			Factor eps_up = vec_at(ctx->factors, mono->fac[j].val);
+			if (eps_up.head.val != bundle->eps_up.val)
+				continue;
+
+			if (share_dummy(&eps_down, &eps_up, symbol->nbr_slot)) {
+				out->eps_down = i;
+				out->eps_up = j;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+static size_t expand_epsilon_pair(Term* out, size_t capacity, Context* ctx,
+								  Term term, EpsilonPair pair) {
+	Monomial mono = vec_at(ctx->monomials, term.mono.val);
+	Factor eps_down = vec_at(ctx->factors, mono.fac[pair.eps_down].val);
+	Factor eps_up = vec_at(ctx->factors, mono.fac[pair.eps_up].val);
+
+	const Symbol* symbol = &vec_at(ctx->symbols, eps_up.head.val);
+	const Bundle* bundle = &vec_at(ctx->bundles, symbol->slot_bundle[0].val);
+
+	// One Kronecker δ per slot of ε in each term of the sum.
+	// ε_{a₁..aₙ} ε^{b₁..bₙ} = Σ_σ sign(σ) δ^{b_σ(1)}_{a₁} ... δ^{b_σ(n)}_{aₙ}.
+	u8 nbr_kronecker = symbol->nbr_slot;
+
+	FacRef facs[CCAE_MAX_FACTORS];
+	size_t nbr_kept = 0;
+	for (u64 i = 0; i < mono.nbr_fac; ++i) {
+		if (i != pair.eps_down && i != pair.eps_up)
+			facs[nbr_kept++] = mono.fac[i];
+	}
+
+	if (nbr_kept + nbr_kronecker > CCAE_MAX_FACTORS) {
+		err_set(&ctx->err, CCAE_INVALID_ARG,
+				"normalisation: more than %zu factors.", CCAE_MAX_FACTORS);
+		return 0;
+	}
+
+	size_t nbr_out = 0;
+	for (u16 p = 0; p < symbol->orbit->nbr_perm; ++p) {
+		SignedPerm perm = symbol->orbit->perms[p];
+
+		for (u8 k = 0; k < nbr_kronecker; ++k) {
+			Index indices[] = {eps_up.indices[perm.image[k]],
+							   eps_down.indices[k]};
+
+			facs[nbr_kept + k] =
+				factor_intern(ctx, bundle->kronecker, rat_from_int(1), indices);
+			if (facs[nbr_kept + k].val == 0)
+				die("CCAE (normalise_term): Kronecker delta rejected.");
+		}
+
+		Term expanded = {.coef = rat_mul(term.coef, rat_from_int(perm.sign)),
+						 .mono =
+							 mono_intern(ctx, facs, nbr_kept + nbr_kronecker)};
+		if (expanded.mono.val == 0)
+			return 0;
+
+		nbr_out +=
+			normalise_term(out + nbr_out, capacity - nbr_out, ctx, expanded);
+		if (!ctx_ok(ctx))
+			return 0;
+	}
+
+	return nbr_out;
+}
+
 size_t normalise_term(Term* out, size_t capacity, Context* ctx, Term term) {
 	if (!ctx_ok(ctx))
 		return 0;
@@ -119,9 +226,15 @@ size_t normalise_term(Term* out, size_t capacity, Context* ctx, Term term) {
 			continue;
 		}
 
+		EpsilonPair pair = {};
+		const Monomial* mono = &vec_at(ctx->monomials, term.mono.val);
+
+		if (check_and_find_epsilon_pair(&pair, ctx, mono))
+			return expand_epsilon_pair(out, capacity, ctx, term, pair);
+
 		if (capacity == 0) {
 			err_set(&ctx->err, CCAE_INVALID_ARG,
-					"normalisation: more than %zu terms.", capacity);
+					"normalisation: too many terms.");
 			return 0;
 		}
 

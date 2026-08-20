@@ -29,6 +29,9 @@ constexpr size_t CCAE_MAX_FACTORS = 128;
 // two rules might undo each other, we avoid this via this constant.
 constexpr size_t CCAE_MAX_NORMALISE_PASSES = 2 * CCAE_MAX_FACTORS;
 
+// The most terms the expansions on an expression might add through normalise.
+constexpr size_t CCAE_MAX_NORMALISED_TERMS = 4096;
+
 // The most indices a monomial can hold: one per slot of each factor.
 constexpr size_t CCAE_MAX_INDICES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
 

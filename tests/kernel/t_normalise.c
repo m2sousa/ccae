@@ -17,6 +17,7 @@ static size_t test_normalise_absorb(void);
 static size_t test_normalise_trace(void);
 static size_t test_normalise_free_delta(void);
 static size_t test_normalise_epsilon_symmetric(void);
+static size_t test_normalise_epsilon_pair(void);
 
 size_t test_normalise(void) {
 	size_t fails = 0;
@@ -24,6 +25,7 @@ size_t test_normalise(void) {
 	fails += test_normalise_trace();
 	fails += test_normalise_free_delta();
 	fails += test_normalise_epsilon_symmetric();
+	fails += test_normalise_epsilon_pair();
 
 	return fails;
 }
@@ -33,7 +35,7 @@ static Context* create_ctx_with_delta(SymRef* delta) {
 	if (!ctx)
 		return NULL;
 
-	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
 	*delta = symbol_declare_tensor(ctx, "delta", SYM_CONST, "^a_b", "", 0);
 	bundle_set_kronecker(ctx, spatial, *delta);
 
@@ -165,6 +167,75 @@ static size_t test_normalise_epsilon_symmetric(void) {
 					  with_free_indices(ctx, A, "ab")};
 	Term eps_A_term = {rat_from_int(1), mono_intern(ctx, eps_A, 2)};
 	CHECK(normalise_term(out, 1, ctx, eps_A_term) == 1);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool epsilon_pair_is(Context* ctx, const char* down_names,
+							const char* up_names, Term* expected,
+							size_t nbr_expected) {
+	Bundle bundle =
+		vec_at(ctx->bundles, bundle_find_by_index_name(ctx, 'a').val);
+
+	FacRef pair[] = {with_free_indices(ctx, bundle.eps_down, down_names),
+					 with_free_indices(ctx, bundle.eps_up, up_names)};
+	Term term = {rat_from_int(1), mono_intern(ctx, pair, 2)};
+
+	ExprRef result = expr_intern(ctx, &term, 1);
+
+	return result.val != 0 &&
+		   result.val == expr_intern(ctx, expected, nbr_expected).val;
+}
+
+static size_t test_normalise_epsilon_pair(void) {
+	size_t fails = 0;
+
+	SymRef delta = {0};
+	Context* ctx = create_ctx_with_delta(&delta);
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_find_by_index_name(ctx, 'a');
+	SymRef eps_down = symbol_declare_tensor(ctx, "epsDown", SYM_CONST, "_a_b_c",
+											"antisym(0,1,2)", 0);
+	SymRef eps_up = symbol_declare_tensor(ctx, "epsUp", SYM_CONST, "^a^b^c",
+										  "antisym(0,1,2)", 0);
+	bundle_set_epsilon(ctx, spatial, eps_down);
+	bundle_set_epsilon(ctx, spatial, eps_up);
+	CHECK(ctx_ok(ctx));
+
+	MonoRef one = mono_intern(ctx, NULL, 0);
+	FacRef delta_da = with_free_indices(ctx, delta, "da");
+	FacRef delta_eb = with_free_indices(ctx, delta, "eb");
+	FacRef delta_ea = with_free_indices(ctx, delta, "ea");
+	FacRef delta_db = with_free_indices(ctx, delta, "db");
+
+	// ε_{abc} ε^{abc} = 6.
+	CHECK(epsilon_pair_is(ctx, "abc", "abc", (Term[]){{rat_from_int(6), one}},
+						  1));
+
+	// ε_{abc} ε^{dbc} = 2 δ^d_a.
+	Term twice_delta = {rat_from_int(2), mono_intern(ctx, &delta_da, 1)};
+	CHECK(epsilon_pair_is(ctx, "abc", "dbc", &twice_delta, 1));
+
+	// ε_{abc} ε^{dec} = δ^d_a δ^e_b − δ^e_a δ^d_b.
+	Term two_deltas[] = {
+		{rat_from_int(1), mono_intern(ctx, (FacRef[]){delta_da, delta_eb}, 2)},
+		{rat_from_int(-1), mono_intern(ctx, (FacRef[]){delta_ea, delta_db}, 2)},
+	};
+	CHECK(epsilon_pair_is(ctx, "abc", "dec", two_deltas, 2));
+
+	// No dummy shared: ε_{abc} ε^{def} stays one term.
+	FacRef no_dummy[] = {with_free_indices(ctx, eps_down, "abc"),
+						 with_free_indices(ctx, eps_up, "def")};
+	Term no_dummy_term = {rat_from_int(1), mono_intern(ctx, no_dummy, 2)};
+
+	Term out[1];
+	CHECK(normalise_term(out, 1, ctx, no_dummy_term) == 1);
 
 	CHECK(ctx_ok(ctx));
 

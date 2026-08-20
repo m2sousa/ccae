@@ -97,11 +97,9 @@ static bool absorb_kronecker(Term* term, Context* ctx) {
 	return false;
 }
 
-Term normalise_term(Context* ctx, Term term) {
-	Term null_term = {.coef = rat_from_int(0), .mono = {.val = 0}};
-
+size_t normalise_term(Term* out, size_t capacity, Context* ctx, Term term) {
 	if (!ctx_ok(ctx))
-		return null_term;
+		return 0;
 
 	if (term.mono.val == 0 || term.mono.val >= ctx->monomials.length)
 		die("CCAE (normalise_term): monomial handle out of range.");
@@ -109,20 +107,31 @@ Term normalise_term(Context* ctx, Term term) {
 	for (size_t pass = 0; pass < CCAE_MAX_NORMALISE_PASSES; ++pass) {
 		int sign = 0;
 		term.mono = canon_mono(ctx, term.mono, &sign);
-		if (term.mono.val == 0)
-			return null_term;
+		if (term.mono.val == 0 || sign == 0)
+			return 0;
 
 		term.coef = rat_mul(term.coef, rat_from_int(sign));
 
-		if (sign == 0 || !absorb_kronecker(&term, ctx))
-			return term;
+		if (absorb_kronecker(&term, ctx)) {
+			if (term.mono.val == 0)
+				return 0;
 
-		if (term.mono.val == 0)
-			return null_term;
+			continue;
+		}
+
+		if (capacity == 0) {
+			err_set(&ctx->err, CCAE_INVALID_ARG,
+					"normalisation: more than %zu terms.", capacity);
+			return 0;
+		}
+
+		out[0] = term;
+
+		return 1;
 	}
 
 	err_set(&ctx->err, CCAE_INVALID_ARG, "normalisation: more than %zu passes.",
 			CCAE_MAX_NORMALISE_PASSES);
 
-	return null_term;
+	return 0;
 }

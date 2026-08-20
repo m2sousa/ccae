@@ -47,10 +47,11 @@ static Context* create_ctx_with_delta(SymRef* delta) {
 
 static bool normalises_to(Context* ctx, MonoRef mono, i64 coef,
 						  MonoRef expected) {
-	Term term = normalise_term(ctx, (Term){rat_from_int(1), mono});
+	Term out[1];
+	size_t nbr_out = normalise_term(out, 1, ctx, (Term){rat_from_int(1), mono});
 
-	return term.mono.val == expected.val &&
-		   rat_cmp(term.coef, rat_from_int(coef)) == 0;
+	return nbr_out == 1 && out[0].mono.val == expected.val &&
+		   rat_cmp(out[0].coef, rat_from_int(coef)) == 0;
 }
 
 static size_t test_normalise_absorb(void) {
@@ -151,21 +152,19 @@ static size_t test_normalise_epsilon_symmetric(void) {
 	// ε_{abc} S^{ab} = 0: swapping a and b gives back the same term, negated.
 	FacRef eps_S[] = {with_free_indices(ctx, eps, "abc"),
 					  with_free_indices(ctx, S, "ab")};
-	MonoRef contracted = mono_intern(ctx, eps_S, 2);
+	Term eps_S_term = {rat_from_int(1), mono_intern(ctx, eps_S, 2)};
 
-	Term term = normalise_term(ctx, (Term){rat_from_int(1), contracted});
-	CHECK(rat_is_zero(term.coef));
+	Term out[1];
+	CHECK(normalise_term(out, 1, ctx, eps_S_term) == 0);
 
 	ExprRef empty = expr_intern(ctx, NULL, 0);
-	Term terms[] = {{rat_from_int(1), contracted}};
-	CHECK(expr_intern(ctx, terms, 1).val == empty.val);
+	CHECK(expr_intern(ctx, &eps_S_term, 1).val == empty.val);
 
 	// A has no symmetry: ε_{abc} A^{ab} stays.
 	FacRef eps_A[] = {with_free_indices(ctx, eps, "abc"),
 					  with_free_indices(ctx, A, "ab")};
-	term = normalise_term(ctx,
-						  (Term){rat_from_int(1), mono_intern(ctx, eps_A, 2)});
-	CHECK(!rat_is_zero(term.coef));
+	Term eps_A_term = {rat_from_int(1), mono_intern(ctx, eps_A, 2)};
+	CHECK(normalise_term(out, 1, ctx, eps_A_term) == 1);
 
 	CHECK(ctx_ok(ctx));
 

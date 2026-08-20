@@ -105,17 +105,33 @@ ExprRef expr_intern(Context* ctx, Term* terms, size_t nbr_term) {
 		}
 	}
 
+	ArenaMark mark = arena_save(ctx->scratch);
+
+	Term* normalised = arena_alloc_array(ctx->scratch, Term, nbr_term);
+	if (!normalised)
+		die("CCAE (expr_intern): out of memory.");
+
+	size_t nbr_normalised = 0;
+
 	for (size_t i = 0; i < nbr_term; ++i) {
-		terms[i] = normalise_term(ctx, terms[i]);
-		if (terms[i].mono.val == 0)
+		nbr_normalised +=
+			normalise_term(&normalised[nbr_normalised],
+						   nbr_term - nbr_normalised, ctx, terms[i]);
+
+		if (!ctx_ok(ctx)) {
+			arena_restore(ctx->scratch, mark);
 			return null_ref;
+		}
 	}
 
-	qsort(terms, nbr_term, sizeof(Term), compare_by_monomial);
+	qsort(normalised, nbr_normalised, sizeof(Term), compare_by_monomial);
 
-	size_t nbr_kept = merge_terms(terms, nbr_term);
+	size_t nbr_kept = merge_terms(normalised, nbr_normalised);
+	ExprRef result = intern_terms(ctx, normalised, nbr_kept);
 
-	return intern_terms(ctx, terms, nbr_kept);
+	arena_restore(ctx->scratch, mark);
+
+	return result;
 }
 
 ExprRef expr_add(Context* ctx, ExprRef a, ExprRef b) {

@@ -10,6 +10,7 @@ static size_t test_symmetry_compose(void);
 static size_t test_symmetry_read(void);
 static size_t test_symmetry_bad_strings(void);
 static size_t test_symmetry_orbit(void);
+static size_t test_symmetry_fully_antisymmetric(void);
 
 size_t test_symmetry(void) {
 	size_t fails = 0;
@@ -18,6 +19,7 @@ size_t test_symmetry(void) {
 	fails += test_symmetry_read();
 	fails += test_symmetry_bad_strings();
 	fails += test_symmetry_orbit();
+	fails += test_symmetry_fully_antisymmetric();
 
 	return fails;
 }
@@ -182,6 +184,40 @@ static size_t test_symmetry_orbit(void) {
 
 	Orbit full = orbit_of(ctx, "antisym(0,1,2,3,4,5)", 6);
 	CHECK(full.nbr_perm == CCAE_MAX_ORBIT);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool fully_antisymmetric(Context* ctx, const char* symmetry,
+								u8 nbr_slot) {
+	Generators gens = {.nbr_generator = 0};
+	if (!symmetry_check_and_read(&gens, ctx, symmetry, nbr_slot))
+		return false;
+
+	Orbit orbit = {.nbr_perm = 0};
+	symmetry_build_orbit(&orbit, &gens);
+
+	return symmetry_check_fully_antisymmetric(&gens, &orbit, nbr_slot);
+}
+
+static size_t test_symmetry_fully_antisymmetric(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	CHECK(fully_antisymmetric(ctx, "antisym(0,1,2)", 3));
+	CHECK(fully_antisymmetric(ctx, "antisym(0,1)", 2));
+
+	CHECK(!fully_antisymmetric(ctx, "antisym(0,1)", 3));
+	CHECK(!fully_antisymmetric(ctx, "sym(0,1,2)", 3));
+	CHECK(!fully_antisymmetric(ctx, "antisym(0,1) antisym(2,3)", 4));
+	CHECK(!fully_antisymmetric(ctx, "", 2));
 
 	CHECK(ctx_ok(ctx));
 

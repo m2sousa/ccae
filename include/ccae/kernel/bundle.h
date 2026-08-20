@@ -11,6 +11,9 @@ typedef struct {
 	StringRef index_names;
 	u8 dim;
 	SymRef kronecker;
+	SymRef eps_up;
+	// FIXME: keep a single Levi-Civita symbol once the metric is implemented
+	SymRef eps_down;
 } Bundle;
 
 typedef Vec(Bundle) BundleVec;
@@ -34,6 +37,16 @@ typedef Vec(Bundle) BundleVec;
  * Example:
  *		`bundle_set_kronecker(ctx, spatial, delta);` */
 void bundle_set_kronecker(Context* ctx, BundleRef bundle, SymRef sym);
+
+/* Registers `sym` as the upper or the lower Levi-Civita symbol of `bundle`.
+ * Sets `ctx->err` when `sym` is not a constant with one slot of `bundle` per
+ * dimension, all up or all down, antisymmetric over every slot, or when
+ * `bundle` already has one in that position. Does nothing after an earlier
+ * error; dies on a bad handle.
+ *
+ * Example:
+ *		`bundle_set_epsilon(ctx, spatial, eps_down);` */
+void bundle_set_epsilon(Context* ctx, BundleRef bundle, SymRef sym);
 
 /* Returns the bundle owning `index_name`, or the null handle.
  *

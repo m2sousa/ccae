@@ -194,3 +194,17 @@ void symmetry_build_orbit(Orbit* out, const Generators* gens) {
 		}
 	}
 }
+
+bool symmetry_check_fully_antisymmetric(const Generators* gens,
+										const Orbit* orbit, u8 nbr_slot) {
+	// There is nbr_slot! possibility for the indices.
+	if (orbit->nbr_perm != factorial(nbr_slot))
+		return false;
+
+	for (u8 g = 0; g < gens->nbr_generator; ++g) {
+		if (gens->generators[g].sign != -1)
+			return false;
+	}
+
+	return true;
+}

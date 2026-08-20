@@ -6,6 +6,7 @@
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/symbol.h>
+#include <ccae/kernel/symmetry.h>
 #include <ccae/utils.h>
 
 static bool check_index_names(Context* ctx, const char* name,
@@ -138,4 +139,63 @@ void bundle_set_kronecker(Context* ctx, BundleRef bundle, SymRef sym) {
 
 	if (check_kronecker(ctx, target, bundle, symbol))
 		target->kronecker = sym;
+}
+
+static bool reject_epsilon(Context* ctx, const Bundle* bundle,
+						   const char* problem) {
+	err_set(&ctx->err, CCAE_INVALID_ARG,
+			"Levi-Civita symbol of bundle '%s': %s.",
+			sp_get(ctx->sp, bundle->name), problem);
+
+	return false;
+}
+
+static bool check_epsilon(Context* ctx, const Bundle* bundle,
+						  BundleRef bundle_ref, const Symbol* symbol) {
+	if (symbol->kind != SYM_CONST)
+		return reject_epsilon(ctx, bundle, "not a constant");
+
+	if (symbol->nbr_slot != bundle->dim)
+		return reject_epsilon(ctx, bundle, "not one slot per dimension");
+
+	for (u8 k = 0; k < symbol->nbr_slot; ++k) {
+		if (symbol->slot_bundle[k].val != bundle_ref.val)
+			return reject_epsilon(ctx, bundle, "a slot of another bundle");
+
+		if (symbol->slot_pos[k] != symbol->slot_pos[0])
+			return reject_epsilon(ctx, bundle, "slots not all up or all down");
+	}
+
+	if (!symmetry_check_fully_antisymmetric(&symbol->generators, symbol->orbit,
+											symbol->nbr_slot))
+		return reject_epsilon(ctx, bundle, "not antisymmetric over every slot");
+
+	SymRef registered =
+		symbol->slot_pos[0] == SLOT_UP ? bundle->eps_up : bundle->eps_down;
+	if (registered.val != 0)
+		return reject_epsilon(ctx, bundle, "already registered");
+
+	return true;
+}
+
+void bundle_set_epsilon(Context* ctx, BundleRef bundle, SymRef sym) {
+	if (!ctx_ok(ctx))
+		return;
+
+	if (bundle.val == 0 || bundle.val >= ctx->bundles.length)
+		die("CCAE (bundle_set_epsilon): bundle handle out of range.");
+
+	if (sym.val == 0 || sym.val >= ctx->symbols.length)
+		die("CCAE (bundle_set_epsilon): symbol handle out of range.");
+
+	Bundle* target = &vec_at(ctx->bundles, bundle.val);
+	const Symbol* symbol = &vec_at(ctx->symbols, sym.val);
+
+	if (!check_epsilon(ctx, target, bundle, symbol))
+		return;
+
+	if (symbol->slot_pos[0] == SLOT_UP)
+		target->eps_up = sym;
+	else
+		target->eps_down = sym;
 }

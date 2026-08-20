@@ -15,6 +15,7 @@ static size_t test_bundle_after_error(void);
 static size_t test_bundle_index_names(void);
 static size_t test_bundle_dim(void);
 static size_t test_bundle_kronecker(void);
+static size_t test_bundle_epsilon(void);
 
 size_t test_bundle(void) {
 	size_t fails = 0;
@@ -25,6 +26,7 @@ size_t test_bundle(void) {
 	fails += test_bundle_index_names();
 	fails += test_bundle_dim();
 	fails += test_bundle_kronecker();
+	fails += test_bundle_epsilon();
 
 	return fails;
 }
@@ -205,6 +207,61 @@ static size_t test_bundle_kronecker(void) {
 
 	// One delta per bundle.
 	CHECK(kronecker_refused(ctx, spatial, delta));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool epsilon_refused(Context* ctx, BundleRef bundle, SymRef sym) {
+	bundle_set_epsilon(ctx, bundle, sym);
+	bool refused = !ctx_ok(ctx);
+
+	ctx_clear_err(ctx);
+
+	return refused;
+}
+
+static size_t test_bundle_epsilon(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijk", 3);
+
+	SymRef eps_down = symbol_declare_tensor(ctx, "epsDown", SYM_CONST, "_a_b_c",
+											"antisym(0,1,2)", 0);
+	SymRef eps_up = symbol_declare_tensor(ctx, "epsUp", SYM_CONST, "^a^b^c",
+										  "antisym(0,1,2)", 0);
+	SymRef field = symbol_declare_tensor(ctx, "f", SYM_FIELD, "_a_b_c",
+										 "antisym(0,1,2)", 0);
+	SymRef two_slots =
+		symbol_declare_tensor(ctx, "t", SYM_CONST, "_a_b", "antisym(0,1)", 0);
+	SymRef mixed =
+		symbol_declare_tensor(ctx, "m", SYM_CONST, "_a_b^c", "antisym(0,1)", 0);
+	SymRef symmetric =
+		symbol_declare_tensor(ctx, "s", SYM_CONST, "_a_b_c", "sym(0,1,2)", 0);
+	SymRef partly =
+		symbol_declare_tensor(ctx, "p", SYM_CONST, "_a_b_c", "antisym(0,1)", 0);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(epsilon_refused(ctx, spatial, field));
+	CHECK(epsilon_refused(ctx, spatial, two_slots));
+	CHECK(epsilon_refused(ctx, spatial, mixed));
+	CHECK(epsilon_refused(ctx, spatial, symmetric));
+	CHECK(epsilon_refused(ctx, spatial, partly));
+	CHECK(epsilon_refused(ctx, internal, eps_down));
+
+	CHECK(!epsilon_refused(ctx, spatial, eps_down));
+	CHECK(!epsilon_refused(ctx, spatial, eps_up));
+	CHECK(vec_at(ctx->bundles, spatial.val).eps_down.val == eps_down.val);
+	CHECK(vec_at(ctx->bundles, spatial.val).eps_up.val == eps_up.val);
+
+	// One Levi-Civita symbol per position.
+	CHECK(epsilon_refused(ctx, spatial, eps_down));
 
 	ctx_destroy(ctx);
 

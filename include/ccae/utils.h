@@ -33,6 +33,18 @@ static inline u64 absolute_value(i64 x) {
 	return x < 0 ? (u64)0 - (u64)x : (u64)x;
 }
 
+/* Returns `n!`.
+ *
+ * Example:
+ *		`factorial(3)` is 6. */
+static inline u64 factorial(u8 n) {
+	u64 result = 1;
+	for (u8 k = 2; k <= n; ++k)
+		result *= k;
+
+	return result;
+}
+
 /* Returns the greatest common divisor of `a` and `b`.
  *
  * Example:

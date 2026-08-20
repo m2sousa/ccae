@@ -62,4 +62,13 @@ SignedPerm signed_perm_swap(u8 first, u8 second, i8 sign);
  *		the generators of "antisym(0,1,2)" give an orbit of 6. */
 void symmetry_build_orbit(Orbit* out, const Generators* gens);
 
+/* Returns whether the generators `gens`, with their orbit `orbit`, make a
+ * symbol of `nbr_slot` slots antisymmetric over every slot.
+ *
+ * Example:
+ *		true for "antisym(0,1,2)" on 3 slots, false for "antisym(0,1)". */
+[[nodiscard]] bool symmetry_check_fully_antisymmetric(const Generators* gens,
+													  const Orbit* orbit,
+													  u8 nbr_slot);
+
 #endif

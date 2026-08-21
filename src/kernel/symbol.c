@@ -224,3 +224,54 @@ void symbol_set_latex(Context* ctx, SymRef sym, const char* latex) {
 
 	vec_at(ctx->symbols, sym.val).latex = sp_intern(ctx->sp, latex);
 }
+
+static bool reject_inverse(Context* ctx, const Symbol* symbol,
+						   const char* problem) {
+	err_set(&ctx->err, CCAE_INVALID_ARG, "inverse of symbol '%s': %s.",
+			sp_get(ctx->sp, symbol->name), problem);
+
+	return false;
+}
+
+static bool check_inverse(Context* ctx, const Symbol* symbol,
+						  const Symbol* inverse) {
+	if (symbol->nbr_slot != 2 || inverse->nbr_slot != 2)
+		return reject_inverse(ctx, symbol, "not two slots each");
+
+	for (u8 k = 0; k < 2; ++k) {
+		if (inverse->slot_bundle[k].val != symbol->slot_bundle[k].val)
+			return reject_inverse(ctx, symbol, "slots of other bundles");
+
+		if (inverse->slot_pos[k] == symbol->slot_pos[k])
+			return reject_inverse(ctx, symbol,
+								  "slots not in opposite positions");
+	}
+
+	u8 first_dim = vec_at(ctx->bundles, symbol->slot_bundle[0].val).dim;
+	u8 second_dim = vec_at(ctx->bundles, symbol->slot_bundle[1].val).dim;
+	if (first_dim != second_dim)
+		return reject_inverse(ctx, symbol, "bundles of different dimensions");
+
+	if (symbol->inverse.val != 0 || inverse->inverse.val != 0)
+		return reject_inverse(ctx, symbol, "already registered");
+
+	return true;
+}
+
+void symbol_set_inverse(Context* ctx, SymRef sym, SymRef inverse) {
+	if (!ctx_ok(ctx))
+		return;
+
+	if (sym.val == 0 || sym.val >= ctx->symbols.length || inverse.val == 0 ||
+		inverse.val >= ctx->symbols.length)
+		die("CCAE (symbol_set_inverse): handle out of range.");
+
+	Symbol* symbol = &vec_at(ctx->symbols, sym.val);
+	Symbol* inverse_symbol = &vec_at(ctx->symbols, inverse.val);
+
+	if (!check_inverse(ctx, symbol, inverse_symbol))
+		return;
+
+	symbol->inverse = inverse;
+	inverse_symbol->inverse = sym;
+}

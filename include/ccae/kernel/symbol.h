@@ -38,6 +38,7 @@ typedef struct {
 	SlotPos slot_pos[CCAE_MAX_SLOT];
 	Generators generators;
 	const Orbit* orbit;
+	SymRef inverse;
 } Symbol;
 
 typedef Vec(Symbol) SymbolVec;
@@ -77,5 +78,15 @@ typedef Vec(Symbol) SymbolVec;
  * Example:
  *		`symbol_set_latex(ctx, dK, "\\delta K");` */
 void symbol_set_latex(Context* ctx, SymRef sym, const char* latex);
+
+/* Registers `sym` and `inverse` as inverses of each other.
+ * Sets `ctx->err` when they do not both have two slots, when their slots are
+ * not of the same bundles in opposite positions, when those two bundles differ
+ * in dimension, or when either already has an inverse.
+ * Does nothing after an earlier error; dies on a bad handle.
+ *
+ * Example:
+ *		`symbol_set_inverse(ctx, triad, cotriad);` with "^a_i" and "_a^i". */
+void symbol_set_inverse(Context* ctx, SymRef sym, SymRef inverse);
 
 #endif

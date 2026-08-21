@@ -20,6 +20,7 @@ static size_t test_symbol_homog(void);
 static size_t test_symbol_const(void);
 static size_t test_symbol_too_many_slots(void);
 static size_t test_symbol_symmetry(void);
+static size_t test_symbol_inverse(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -32,6 +33,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_const();
 	fails += test_symbol_too_many_slots();
 	fails += test_symbol_symmetry();
+	fails += test_symbol_inverse();
 
 	return fails;
 }
@@ -284,6 +286,56 @@ static size_t test_symbol_symmetry(void) {
 	CHECK(D.val != 0);
 
 	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool inverse_refused(Context* ctx, SymRef sym, SymRef inverse) {
+	symbol_set_inverse(ctx, sym, inverse);
+	bool refused = !ctx_ok(ctx);
+
+	ctx_clear_err(ctx);
+
+	return refused;
+}
+
+static size_t test_symbol_inverse(void) {
+	size_t fails = 0;
+
+	Context* ctx = create_ctx_with_bundles();
+	if (!ctx)
+		return 1;
+
+	BundleRef plane = bundle_declare(ctx, "plane", "xy", 2);
+	CHECK(plane.val != 0);
+
+	SymRef triad =
+		symbol_declare_tensor(ctx, "triad", SYM_CONST, "^a_i", "", 0);
+	SymRef cotriad =
+		symbol_declare_tensor(ctx, "cotriad", SYM_CONST, "_a^i", "", 0);
+	SymRef E = symbol_declare_tensor(ctx, "E", SYM_FIELD, "^a_i", "", 0);
+	SymRef same_pos = symbol_declare_tensor(ctx, "s", SYM_CONST, "^a_i", "", 0);
+	SymRef swapped = symbol_declare_tensor(ctx, "w", SYM_CONST, "_i^a", "", 0);
+	SymRef one_slot = symbol_declare_tensor(ctx, "v", SYM_CONST, "_a", "", 0);
+	SymRef up_x = symbol_declare_tensor(ctx, "ux", SYM_CONST, "^a_x", "", 0);
+	SymRef down_x = symbol_declare_tensor(ctx, "dx", SYM_CONST, "_a^x", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	CHECK(inverse_refused(ctx, triad, same_pos));
+	CHECK(inverse_refused(ctx, triad, swapped));
+	CHECK(inverse_refused(ctx, triad, one_slot));
+
+	// Spatial is 3-d and plane 2-d: no inverse on both sides.
+	CHECK(inverse_refused(ctx, up_x, down_x));
+
+	CHECK(!inverse_refused(ctx, triad, cotriad));
+	CHECK(vec_at(ctx->symbols, triad.val).inverse.val == cotriad.val);
+	CHECK(vec_at(ctx->symbols, cotriad.val).inverse.val == triad.val);
+
+	// One inverse each.
+	CHECK(inverse_refused(ctx, E, cotriad));
 
 	ctx_destroy(ctx);
 

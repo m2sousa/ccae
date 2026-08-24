@@ -1,11 +1,13 @@
 #include <stddef.h>
 
+#include <ccae/config.h>
 #include <ccae/core/rational.h>
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/factor.h>
 #include <ccae/kernel/symbol.h>
 
+#include "t_kernel_utils.h"
 #include "t_utils.h"
 
 static size_t test_factor_intern_once(void);
@@ -13,6 +15,7 @@ static size_t test_factor_distinct_powers(void);
 static size_t test_factor_bad_powers(void);
 static size_t test_factor_indices(void);
 static size_t test_factor_bad_indices(void);
+static size_t test_factor_derive(void);
 
 size_t test_factor(void) {
 	size_t fails = 0;
@@ -21,6 +24,7 @@ size_t test_factor(void) {
 	fails += test_factor_bad_powers();
 	fails += test_factor_indices();
 	fails += test_factor_bad_indices();
+	fails += test_factor_derive();
 
 	return fails;
 }
@@ -181,6 +185,65 @@ static size_t test_factor_bad_indices(void) {
 		factor_intern(ctx, dK, one, (Index[]){{IDX_FREE, 'i'}, {IDX_FREE, 'z'}})
 			.val == 0);
 	CHECK(!ctx_ok(ctx));
+	ctx_clear_err(ctx);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_factor_derive(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	BundleRef internal = bundle_declare(ctx, "internal", "ijk", 3);
+	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^c", "", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", 0);
+	CHECK(ctx_ok(ctx));
+
+	Index a = {IDX_FREE, 'a'};
+	Index b = {IDX_FREE, 'b'};
+	Index i = {IDX_FREE, 'i'};
+
+	FacRef X_c = with_free_indices(ctx, X, "c");
+	FacRef p_one = factor_intern(ctx, p, rat_from_int(1), NULL);
+
+	// No bundle carries the derivative yet.
+	CHECK(factor_derive(ctx, X_c, a).val == 0);
+	ctx_clear_err(ctx);
+
+	bundle_set_derivative(ctx, spatial);
+	CHECK(ctx_ok(ctx));
+
+	// One derivative bundle only.
+	bundle_set_derivative(ctx, internal);
+	CHECK(!ctx_ok(ctx));
+	ctx_clear_err(ctx);
+
+	// ∂_a ∂_b X^c and ∂_b ∂_a X^c are the same factor.
+	FacRef d_a = factor_derive(ctx, X_c, a);
+	FacRef d_ab = factor_derive(ctx, d_a, b);
+	FacRef d_ba = factor_derive(ctx, factor_derive(ctx, X_c, b), a);
+	CHECK(d_a.val != 0 && d_a.val != X_c.val);
+	CHECK(d_ab.val != 0 && d_ab.val == d_ba.val);
+	CHECK(vec_at(ctx->factors, d_ab.val).nbr_der == 2);
+
+	// Refused: an internal index, a constant in space, too many indices.
+	CHECK(factor_derive(ctx, X_c, i).val == 0);
+	ctx_clear_err(ctx);
+
+	CHECK(factor_derive(ctx, p_one, a).val == 0);
+	ctx_clear_err(ctx);
+
+	FacRef many = X_c;
+	for (size_t k = 0; k < CCAE_MAX_DERIVATIVES; ++k)
+		many = factor_derive(ctx, many, a);
+	CHECK(many.val != 0);
+	CHECK(factor_derive(ctx, many, a).val == 0);
 	ctx_clear_err(ctx);
 
 	ctx_destroy(ctx);

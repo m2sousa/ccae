@@ -11,6 +11,7 @@ typedef struct {
 	StringRef index_names;
 	u8 dim;
 	SymRef kronecker;
+	bool derivative;
 	SymRef eps_up;
 	// FIXME: keep a single Levi-Civita symbol once the metric is implemented
 	SymRef eps_down;
@@ -47,6 +48,22 @@ void bundle_set_kronecker(Context* ctx, BundleRef bundle, SymRef sym);
  * Example:
  *		`bundle_set_epsilon(ctx, spatial, eps_down);` */
 void bundle_set_epsilon(Context* ctx, BundleRef bundle, SymRef sym);
+
+// TODO: Going for more generalities, we could add derivative to bundles
+// regardless of other bundles, for whatever reasons.
+/* Registers `bundle` as the one the spatial derivative `∂_a`.
+ * Sets `ctx->err` when a bundle already has it. Does nothing after an earlier
+ * error; dies on a bad handle.
+ *
+ * Example:
+ *		`bundle_set_derivative(ctx, spatial);` */
+void bundle_set_derivative(Context* ctx, BundleRef bundle);
+
+/* Returns the bundle the spatial derivative acts on, or the null handle.
+ *
+ * Example:
+ *		`BundleRef space = bundle_find_derivative(ctx);` */
+[[nodiscard]] BundleRef bundle_find_derivative(const Context* ctx);
 
 /* Returns the bundle owning `index_name`, or the null handle.
  *

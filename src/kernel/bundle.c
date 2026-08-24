@@ -199,3 +199,34 @@ void bundle_set_epsilon(Context* ctx, BundleRef bundle, SymRef sym) {
 	else
 		target->eps_down = sym;
 }
+
+BundleRef bundle_find_derivative(const Context* ctx) {
+	BundleRef found = {.val = 0};
+
+	for (size_t i = 1; i < ctx->bundles.length; ++i) {
+		if (vec_at(ctx->bundles, i).derivative) {
+			found.val = (u32)i;
+			break;
+		}
+	}
+
+	return found;
+}
+
+void bundle_set_derivative(Context* ctx, BundleRef bundle) {
+	if (!ctx_ok(ctx))
+		return;
+
+	if (bundle.val == 0 || bundle.val >= ctx->bundles.length)
+		die("CCAE (bundle_set_derivative): bundle handle out of range.");
+
+	BundleRef registered = bundle_find_derivative(ctx);
+	if (registered.val != 0) {
+		err_set(&ctx->err, CCAE_INVALID_ARG,
+				"derivative: already on bundle '%s'.",
+				sp_get(ctx->sp, vec_at(ctx->bundles, registered.val).name));
+		return;
+	}
+
+	vec_at(ctx->bundles, bundle.val).derivative = true;
+}

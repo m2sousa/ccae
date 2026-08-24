@@ -98,6 +98,65 @@ static bool absorb_kronecker(Term* term, Context* ctx) {
 	return false;
 }
 
+// Contracts one symbol of `*term` with its inverse over a slot. Needs the
+// Kronecker delta of the other slot's bundle.
+static bool contract_inverse(Term* term, Context* ctx) {
+	Monomial mono = vec_at(ctx->monomials, term->mono.val);
+
+	for (u64 i = 0; i < mono.nbr_fac; ++i) {
+		Factor fac = vec_at(ctx->factors, mono.fac[i].val);
+		const Symbol* symbol = &vec_at(ctx->symbols, fac.head.val);
+		if (symbol->inverse.val == 0)
+			continue;
+
+		for (u64 j = 0; j < mono.nbr_fac; ++j) {
+			Factor partner = vec_at(ctx->factors, mono.fac[j].val);
+			if (partner.head.val != symbol->inverse.val)
+				continue;
+
+			for (u8 k = 0; k < 2; ++k) {
+				bool contracted =
+					fac.indices[k].kind == IDX_DUMMY &&
+					index_equal(fac.indices[k], partner.indices[k]);
+				if (!contracted)
+					continue;
+
+				u8 other = (u8)(1 - k);
+				const Bundle* bundle =
+					&vec_at(ctx->bundles, symbol->slot_bundle[other].val);
+				if (bundle->kronecker.val == 0)
+					continue;
+
+				// The Kronecker takes the two indices left.
+				Index indices[] = {fac.indices[other], partner.indices[other]};
+				if (symbol->slot_pos[other] == SLOT_DOWN) {
+					indices[0] = partner.indices[other];
+					indices[1] = fac.indices[other];
+				}
+
+				FacRef facs[CCAE_MAX_FACTORS];
+				size_t nbr_kept = 0;
+
+				for (u64 f = 0; f < mono.nbr_fac; ++f) {
+					if (f != i && f != j)
+						facs[nbr_kept++] = mono.fac[f];
+				}
+
+				facs[nbr_kept] = factor_intern(ctx, bundle->kronecker,
+											   rat_from_int(1), indices);
+				if (facs[nbr_kept].val == 0)
+					die("CCAE (normalise_term): Kronecker delta rejected.");
+
+				term->mono = mono_intern(ctx, facs, nbr_kept + 1);
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 // FIXME: This might be deleted once metrics are introduced and eps_down/_up are
 // removed for a single eps.
 typedef struct {
@@ -219,7 +278,7 @@ size_t normalise_term(Term* out, size_t capacity, Context* ctx, Term term) {
 
 		term.coef = rat_mul(term.coef, rat_from_int(sign));
 
-		if (absorb_kronecker(&term, ctx)) {
+		if (absorb_kronecker(&term, ctx) || contract_inverse(&term, ctx)) {
 			if (term.mono.val == 0)
 				return 0;
 

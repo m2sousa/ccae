@@ -18,6 +18,7 @@ static size_t test_normalise_trace(void);
 static size_t test_normalise_free_delta(void);
 static size_t test_normalise_epsilon_symmetric(void);
 static size_t test_normalise_epsilon_pair(void);
+static size_t test_normalise_inverse(void);
 
 size_t test_normalise(void) {
 	size_t fails = 0;
@@ -26,6 +27,7 @@ size_t test_normalise(void) {
 	fails += test_normalise_free_delta();
 	fails += test_normalise_epsilon_symmetric();
 	fails += test_normalise_epsilon_pair();
+	fails += test_normalise_inverse();
 
 	return fails;
 }
@@ -236,6 +238,74 @@ static size_t test_normalise_epsilon_pair(void) {
 
 	Term out[1];
 	CHECK(normalise_term(out, 1, ctx, no_dummy_term) == 1);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_normalise_inverse(void) {
+	size_t fails = 0;
+
+	SymRef delta = {0};
+	Context* ctx = create_ctx_with_delta(&delta);
+	if (!ctx)
+		return 1;
+
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn", 3);
+	SymRef delta_internal =
+		symbol_declare_tensor(ctx, "deltaInternal", SYM_CONST, "^i_j", "", 0);
+	bundle_set_kronecker(ctx, internal, delta_internal);
+
+	SymRef triad =
+		symbol_declare_tensor(ctx, "triad", SYM_CONST, "^a_i", "", 0);
+	SymRef cotriad =
+		symbol_declare_tensor(ctx, "cotriad", SYM_CONST, "_a^i", "", 0);
+	symbol_set_inverse(ctx, triad, cotriad);
+
+	SymRef eps = symbol_declare_tensor(ctx, "eps", SYM_CONST, "_i_j_k",
+									   "antisym(0,1,2)", 0);
+	CHECK(ctx_ok(ctx));
+
+	MonoRef one = mono_intern(ctx, NULL, 0);
+	FacRef delta_ab = with_free_indices(ctx, delta, "ab");
+	FacRef delta_ji = with_free_indices(ctx, delta_internal, "ji");
+
+	// δ^a_i δ_b^i = δ^a_b.
+	FacRef second_slots[] = {with_free_indices(ctx, triad, "ai"),
+							 with_free_indices(ctx, cotriad, "bi")};
+	CHECK(normalises_to(ctx, mono_intern(ctx, second_slots, 2), 1,
+						mono_intern(ctx, &delta_ab, 1)));
+
+	// δ^a_i δ_a^j = δ^j_i.
+	FacRef first_slots[] = {with_free_indices(ctx, triad, "ai"),
+							with_free_indices(ctx, cotriad, "aj")};
+	CHECK(normalises_to(ctx, mono_intern(ctx, first_slots, 2), 1,
+						mono_intern(ctx, &delta_ji, 1)));
+
+	// δ^a_i δ_a^i = δ^i_i = 3.
+	FacRef both_slots[] = {with_free_indices(ctx, triad, "ai"),
+						   with_free_indices(ctx, cotriad, "ai")};
+	CHECK(normalises_to(ctx, mono_intern(ctx, both_slots, 2), 3, one));
+
+	// ε_{ijk} δ^j_a δ^k_b δ^a_l δ^b_m = ε_{ilm}.
+	FacRef chain[] = {
+		with_free_indices(ctx, eps, "ijk"),
+		with_free_indices(ctx, cotriad, "aj"),
+		with_free_indices(ctx, cotriad, "bk"),
+		with_free_indices(ctx, triad, "al"),
+		with_free_indices(ctx, triad, "bm"),
+	};
+	FacRef eps_ilm = with_free_indices(ctx, eps, "ilm");
+	CHECK(normalises_to(ctx, mono_intern(ctx, chain, 5), 1,
+						mono_intern(ctx, &eps_ilm, 1)));
+
+	// A lone triad stays.
+	FacRef triad_ai = with_free_indices(ctx, triad, "ai");
+	MonoRef lone = mono_intern(ctx, &triad_ai, 1);
+	CHECK(normalises_to(ctx, lone, 1, lone));
 
 	CHECK(ctx_ok(ctx));
 

@@ -75,6 +75,32 @@ static bool indices_equal(const Index* a, const Index* b, u8 nbr_slot) {
 	return true;
 }
 
+static bool factors_equal(const Factor* a, const Factor* b, u8 nbr_slot) {
+	return a->head.val == b->head.val &&
+		   rat_cmp(a->exponent, b->exponent) == 0 &&
+		   indices_equal(a->indices, b->indices, nbr_slot) &&
+		   a->nbr_der == b->nbr_der &&
+		   indices_equal(a->der, b->der, a->nbr_der);
+}
+
+// Returns the handle of `fac`, storing it the first time. Every factor is
+// interned here.
+static FacRef intern_factor(Context* ctx, const Factor* fac, u8 nbr_slot) {
+	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
+	for (size_t i = 1; i < ctx->factors.length; ++i) {
+		if (factors_equal(&vec_at(ctx->factors, i), fac, nbr_slot)) {
+			FacRef found = {.val = (u32)i};
+			return found;
+		}
+	}
+
+	vec_append(ctx->perm, ctx->factors, *fac);
+
+	FacRef result = {.val = (u32)(ctx->factors.length - 1)};
+
+	return result;
+}
+
 FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 					 const Index* indices) {
 	FacRef null_ref = {.val = 0};
@@ -91,44 +117,16 @@ FacRef factor_intern(Context* ctx, SymRef head, Rational exponent,
 		!check_indices(ctx, symbol, indices))
 		return null_ref;
 
-	// TODO: This is a linear search, setup an hashmap to get O(1) accesses.
-	for (size_t i = 1; i < ctx->factors.length; ++i) {
-		Factor fac = vec_at(ctx->factors, i);
-
-		// Rationals are normalised on creation, so equal factors must
-		// have strictly equal fields.
-		bool same_exponent = fac.exponent.negative == exponent.negative &&
-							 fac.exponent.num == exponent.num &&
-							 fac.exponent.den == exponent.den;
-
-		if (fac.head.val == head.val && same_exponent && fac.nbr_der == 0 &&
-			indices_equal(fac.indices, indices, symbol->nbr_slot)) {
-			FacRef found = {.val = (u32)i};
-			return found;
-		}
-	}
-
 	Factor fac = {.head = head, .exponent = exponent};
 
 	for (u8 k = 0; k < symbol->nbr_slot; ++k)
 		fac.indices[k] = indices[k];
-	vec_append(ctx->perm, ctx->factors, fac);
 
-	FacRef result = {.val = (u32)(ctx->factors.length - 1)};
-
-	return result;
+	return intern_factor(ctx, &fac, symbol->nbr_slot);
 }
 
 static int compare_indices(const void* a, const void* b) {
 	return index_cmp(*(const Index*)a, *(const Index*)b);
-}
-
-static bool factors_equal(const Factor* a, const Factor* b, u8 nbr_slot) {
-	return a->head.val == b->head.val &&
-		   rat_cmp(a->exponent, b->exponent) == 0 &&
-		   indices_equal(a->indices, b->indices, nbr_slot) &&
-		   a->nbr_der == b->nbr_der &&
-		   indices_equal(a->der, b->der, a->nbr_der);
 }
 
 static bool check_derivative_index(Context* ctx, const Symbol* symbol,
@@ -173,17 +171,79 @@ FacRef factor_derive(Context* ctx, FacRef fac_ref, Index a) {
 	// have a single FacRef with the derivatives.
 	qsort(fac.der, fac.nbr_der, sizeof(Index), compare_indices);
 
-	// TODO: the same linear search as `factor_intern`.
-	for (size_t i = 1; i < ctx->factors.length; ++i) {
-		if (factors_equal(&vec_at(ctx->factors, i), &fac, symbol->nbr_slot)) {
-			FacRef found = {.val = (u32)i};
-			return found;
+	return intern_factor(ctx, &fac, symbol->nbr_slot);
+}
+
+FacRef factor_replace_indices(Context* ctx, FacRef fac_ref,
+							  const Index* indices) {
+	FacRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (fac_ref.val == 0 || fac_ref.val >= ctx->factors.length)
+		die("CCAE (factor_replace_indices): factor handle out of range.");
+
+	Factor fac = vec_at(ctx->factors, fac_ref.val);
+	const Symbol* symbol = &vec_at(ctx->symbols, fac.head.val);
+
+	if (!check_indices(ctx, symbol, indices))
+		return null_ref;
+
+	for (u8 k = 0; k < symbol->nbr_slot; ++k)
+		fac.indices[k] = indices[k];
+
+	BundleRef space = bundle_find_derivative(ctx);
+
+	for (u8 k = 0; k < fac.nbr_der; ++k) {
+		Index a = indices[symbol->nbr_slot + k];
+
+		bool other_bundle =
+			a.kind == IDX_FREE &&
+			bundle_find_by_index_name(ctx, (char)a.id).val != space.val;
+
+		if (other_bundle) {
+			reject_factor(ctx, symbol,
+						  "derivative index not of the derivative's bundle");
+			return null_ref;
 		}
+
+		fac.der[k] = a;
 	}
 
-	vec_append(ctx->perm, ctx->factors, fac);
+	// Replaced dummies may break the order: sort again.
+	qsort(fac.der, fac.nbr_der, sizeof(Index), compare_indices);
 
-	FacRef result = {.val = (u32)(ctx->factors.length - 1)};
+	return intern_factor(ctx, &fac, symbol->nbr_slot);
+}
 
-	return result;
+int factor_cmp(const Context* ctx, FacRef a, FacRef b) {
+	Factor fac_a = vec_at(ctx->factors, a.val);
+	Factor fac_b = vec_at(ctx->factors, b.val);
+
+	if (fac_a.head.val != fac_b.head.val)
+		return fac_a.head.val < fac_b.head.val ? -1 : 1;
+
+	if (fac_a.nbr_der != fac_b.nbr_der)
+		return fac_a.nbr_der < fac_b.nbr_der ? -1 : 1;
+
+	for (u8 k = 0; k < fac_a.nbr_der; ++k) {
+		int der_order = index_cmp(fac_a.der[k], fac_b.der[k]);
+		if (der_order != 0)
+			return der_order;
+	}
+
+	int exponent_order = rat_cmp(fac_a.exponent, fac_b.exponent);
+	if (exponent_order != 0)
+		return exponent_order;
+
+	u8 nbr_slot = vec_at(ctx->symbols, fac_a.head.val).nbr_slot;
+
+	for (u8 k = 0; k < nbr_slot; ++k) {
+		int index_order = index_cmp(fac_a.indices[k], fac_b.indices[k]);
+		if (index_order != 0)
+			return index_order;
+	}
+
+	return 0;
 }

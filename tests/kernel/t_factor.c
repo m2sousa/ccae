@@ -16,6 +16,8 @@ static size_t test_factor_bad_powers(void);
 static size_t test_factor_indices(void);
 static size_t test_factor_bad_indices(void);
 static size_t test_factor_derive(void);
+static size_t test_factor_cmp(void);
+static size_t test_factor_replace_indices(void);
 
 size_t test_factor(void) {
 	size_t fails = 0;
@@ -25,6 +27,8 @@ size_t test_factor(void) {
 	fails += test_factor_indices();
 	fails += test_factor_bad_indices();
 	fails += test_factor_derive();
+	fails += test_factor_cmp();
+	fails += test_factor_replace_indices();
 
 	return fails;
 }
@@ -244,6 +248,94 @@ static size_t test_factor_derive(void) {
 		many = factor_derive(ctx, many, a);
 	CHECK(many.val != 0);
 	CHECK(factor_derive(ctx, many, a).val == 0);
+	ctx_clear_err(ctx);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_factor_cmp(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	bundle_set_derivative(ctx, spatial);
+
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	SymRef T = symbol_declare_tensor(ctx, "T", SYM_FIELD, "^a^b", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2), NULL);
+	FacRef dx_a = factor_derive(ctx, x_one, (Index){IDX_FREE, 'a'});
+	FacRef dx_b = factor_derive(ctx, x_one, (Index){IDX_FREE, 'b'});
+	FacRef T_ab = with_free_indices(ctx, T, "ab");
+	FacRef T_ba = with_free_indices(ctx, T, "ba");
+
+	// The head first: x is declared before T.
+	CHECK(factor_cmp(ctx, x_two, T_ab) == -1);
+
+	// Then the derivative indices, before the exponent: x² comes before ∂_a x.
+	CHECK(factor_cmp(ctx, x_two, dx_a) == -1);
+	CHECK(factor_cmp(ctx, dx_a, dx_b) == -1);
+
+	// Then the exponent, then the indices slot by slot.
+	CHECK(factor_cmp(ctx, x_one, x_two) == -1);
+	CHECK(factor_cmp(ctx, T_ba, T_ab) == 1);
+	CHECK(factor_cmp(ctx, T_ab, T_ab) == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_factor_replace_indices(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	CHECK(bundle_declare(ctx, "internal", "ijk", 3).val != 0);
+	bundle_set_derivative(ctx, spatial);
+
+	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "^c", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	Index a = {IDX_FREE, 'a'};
+	Index b = {IDX_FREE, 'b'};
+	Index c = {IDX_FREE, 'c'};
+	Index d = {IDX_FREE, 'd'};
+	Index i = {IDX_FREE, 'i'};
+	Index d0 = {IDX_DUMMY, 0};
+
+	FacRef X_c = with_free_indices(ctx, X, "c");
+	FacRef dX_ab = factor_derive(ctx, factor_derive(ctx, X_c, a), b);
+
+	// The slot first, then the derivative indices: ∂_a ∂_b X^c is (c, a, b).
+	CHECK(factor_replace_indices(ctx, dX_ab, (Index[]){c, a, b}).val ==
+		  dX_ab.val);
+
+	// A dummy in the slot: ∂_a ∂_b X^$0.
+	FacRef dX_ab_0 = factor_replace_indices(ctx, dX_ab, (Index[]){d0, a, b});
+	CHECK(dX_ab_0.val != 0 && dX_ab_0.val != dX_ab.val);
+	CHECK(vec_at(ctx->factors, dX_ab_0.val).nbr_der == 2);
+
+	// The derivative indices are sorted again: (c, d, a) is ∂_a ∂_d X^c.
+	FacRef dX_ad = factor_derive(ctx, factor_derive(ctx, X_c, a), d);
+	CHECK(factor_replace_indices(ctx, dX_ab, (Index[]){c, d, a}).val ==
+		  dX_ad.val);
+
+	// Refused: an internal index in the slot, or as a derivative index.
+	CHECK(factor_replace_indices(ctx, dX_ab, (Index[]){i, a, b}).val == 0);
+	ctx_clear_err(ctx);
+
+	CHECK(factor_replace_indices(ctx, dX_ab, (Index[]){c, i, b}).val == 0);
 	ctx_clear_err(ctx);
 
 	ctx_destroy(ctx);

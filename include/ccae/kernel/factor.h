@@ -39,4 +39,23 @@ typedef Vec(Factor) FactorVec;
  *		`FacRef dX = factor_derive(ctx, X_c, (Index){IDX_FREE, 'a'});` */
 [[nodiscard]] FacRef factor_derive(Context* ctx, FacRef fac, Index a);
 
+/* Returns the handle of `fac` with new indices `indices` (slots then
+ * derivatives, in order). Head and exponent are kept, the derivative indices
+ * sorted again.
+ * Sets `ctx->err` and returns the null handle on a free index not
+ * of its place's bundle.
+ *
+ * Example:
+ *		`factor_replace_indices(ctx, dX, (Index[]){{IDX_DUMMY, 0}, {IDX_FREE,
+ * 'b'}})` turns `∂_b X^a` into `∂_b X^$0`. */
+[[nodiscard]] FacRef factor_replace_indices(Context* ctx, FacRef fac,
+											const Index* indices);
+
+/* Returns -1, 0 or 1 as `a` comes before, is, or comes after `b`: by head
+ * handle, then derivative indices, then exponent, then indices slot by slot.
+ *
+ * Example:
+ *		`factor_cmp(ctx, x_one, x_two)` is -1: `x` comes before `x²`. */
+[[nodiscard]] int factor_cmp(const Context* ctx, FacRef a, FacRef b);
+
 #endif

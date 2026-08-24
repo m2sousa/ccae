@@ -35,8 +35,10 @@ constexpr size_t CCAE_MAX_NORMALISED_TERMS = 4096;
 // The most derivative indices on one factor.
 constexpr size_t CCAE_MAX_DERIVATIVES = 8;
 
-// The most indices a monomial can hold: one per slot of each factor.
-constexpr size_t CCAE_MAX_INDICES = CCAE_MAX_FACTORS * CCAE_MAX_SLOT;
+// The most indices a monomial can hold: one per slot and per derivative index
+// of each factor.
+constexpr size_t CCAE_MAX_INDICES =
+	CCAE_MAX_FACTORS * (CCAE_MAX_SLOT + CCAE_MAX_DERIVATIVES);
 
 // This is purely empiric, perf/alloc tests must be done at some point.
 constexpr size_t CCAE_ARENA_NODE_CAP = 4'194'304;

@@ -23,6 +23,7 @@ static size_t test_monomial_dummies(void);
 static size_t test_monomial_bad_dummies(void);
 static size_t test_monomial_mul_dummies(void);
 static size_t test_monomial_content_order(void);
+static size_t test_monomial_derivatives(void);
 
 size_t test_monomial(void) {
 	size_t fails = 0;
@@ -36,6 +37,7 @@ size_t test_monomial(void) {
 	fails += test_monomial_bad_dummies();
 	fails += test_monomial_mul_dummies();
 	fails += test_monomial_content_order();
+	fails += test_monomial_derivatives();
 
 	return fails;
 }
@@ -398,6 +400,81 @@ static size_t test_monomial_content_order(void) {
 	CHECK(stored.nbr_fac == 2);
 	CHECK(stored.fac[0].val == dK_ib.val);
 	CHECK(stored.fac[1].val == dK_ja.val);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_monomial_derivatives(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	bundle_set_derivative(ctx, spatial);
+
+	SymRef T = symbol_declare_tensor(ctx, "T", SYM_FIELD, "^a^b", "", 0);
+	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "_a", "", 0);
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	SymRef V = symbol_declare_tensor(ctx, "V", SYM_FIELD, "^a", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	Index a = {IDX_FREE, 'a'};
+	Index b = {IDX_FREE, 'b'};
+	Index d0 = {IDX_DUMMY, 0};
+
+	// ∂_a T^{ab}: the derivative index pairs with the up slot. Written with a
+	// free `a` twice or with a dummy, it is the same monomial.
+	FacRef dT_aab = factor_derive(ctx, with_free_indices(ctx, T, "ab"), a);
+	FacRef dT_00b = factor_derive(
+		ctx, factor_intern(ctx, T, rat_from_int(1), (Index[]){d0, b}), d0);
+
+	MonoRef by_names = mono_intern(ctx, &dT_aab, 1);
+	MonoRef by_dummy = mono_intern(ctx, &dT_00b, 1);
+	CHECK(by_names.val != 0 && by_names.val == by_dummy.val);
+
+	// Its only free index is `b`, up.
+	FacRef V_b = with_free_indices(ctx, V, "b");
+	CHECK(mono_free_indices_equal(ctx, by_names, mono_intern(ctx, &V_b, 1)));
+
+	// ∂_a Y_a: both down, refused.
+	FacRef dY_aa = factor_derive(ctx, with_free_indices(ctx, Y, "a"), a);
+	CHECK(mono_intern(ctx, &dY_aa, 1).val == 0);
+	ctx_clear_err(ctx);
+
+	// x·x merges into x², but x·∂_a x and ∂_a x·∂_b x stay two factors.
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	FacRef dx_a = factor_derive(ctx, x_one, a);
+	FacRef dx_b = factor_derive(ctx, x_one, b);
+
+	CHECK(vec_at(ctx->monomials,
+				 mono_intern(ctx, (FacRef[]){x_one, x_one}, 2).val)
+			  .nbr_fac == 1);
+	CHECK(
+		vec_at(ctx->monomials, mono_intern(ctx, (FacRef[]){x_one, dx_a}, 2).val)
+			.nbr_fac == 2);
+	CHECK(
+		vec_at(ctx->monomials, mono_intern(ctx, (FacRef[]){dx_a, dx_b}, 2).val)
+			.nbr_fac == 2);
+
+	// x · ∂_a x · x² keeps x and x² together: x³ · ∂_a x.
+	FacRef x_two = factor_intern(ctx, x, rat_from_int(2), NULL);
+	FacRef x_three = factor_intern(ctx, x, rat_from_int(3), NULL);
+	CHECK(mono_intern(ctx, (FacRef[]){x_one, dx_a, x_two}, 3).val ==
+		  mono_intern(ctx, (FacRef[]){x_three, dx_a}, 2).val);
+
+	// The dummies of a product's right side are shifted, derivative ones too.
+	FacRef dT_ccd = factor_derive(ctx, with_free_indices(ctx, T, "cd"),
+								  (Index){IDX_FREE, 'c'});
+	MonoRef first = mono_intern(ctx, &dT_aab, 1);
+	MonoRef second = mono_intern(ctx, &dT_ccd, 1);
+	CHECK(mono_mul(ctx, first, second).val ==
+		  mono_intern(ctx, (FacRef[]){dT_aab, dT_ccd}, 2).val);
+
+	CHECK(ctx_ok(ctx));
 
 	ctx_destroy(ctx);
 

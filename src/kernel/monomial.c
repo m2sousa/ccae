@@ -4,6 +4,7 @@
 #include <ccae/core/error.h>
 #include <ccae/core/rational.h>
 #include <ccae/core/vec.h>
+#include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/factor.h>
 #include <ccae/kernel/index.h>
@@ -15,29 +16,6 @@ typedef struct {
 	BundleRef bundle;
 	SlotPos pos;
 } Occurrence;
-
-// Orders factors by handle (head), then exponent, then indices slot by slot.
-static int factor_cmp(const Context* ctx, FacRef a, FacRef b) {
-	Factor fac_a = vec_at(ctx->factors, a.val);
-	Factor fac_b = vec_at(ctx->factors, b.val);
-
-	if (fac_a.head.val != fac_b.head.val)
-		return fac_a.head.val < fac_b.head.val ? -1 : 1;
-
-	int exponent_order = rat_cmp(fac_a.exponent, fac_b.exponent);
-	if (exponent_order != 0)
-		return exponent_order;
-
-	u8 nbr_slot = vec_at(ctx->symbols, fac_a.head.val).nbr_slot;
-
-	for (u8 k = 0; k < nbr_slot; ++k) {
-		int index_order = index_cmp(fac_a.indices[k], fac_b.indices[k]);
-		if (index_order != 0)
-			return index_order;
-	}
-
-	return 0;
-}
 
 static void sort_factors(const Context* ctx, Monomial* mono) {
 	// Insertion sort.
@@ -64,7 +42,7 @@ static bool check_and_merge_exponents(Context* ctx, Monomial* mono) {
 		Factor first = vec_at(ctx->factors, mono->fac[i].val);
 		u64 nbr_slot = vec_at(ctx->symbols, first.head.val).nbr_slot;
 
-		if (nbr_slot > 0) {
+		if (nbr_slot > 0 || first.nbr_der > 0) {
 			mono->fac[nbr_kept++] = mono->fac[i++];
 			continue;
 		}
@@ -74,7 +52,7 @@ static bool check_and_merge_exponents(Context* ctx, Monomial* mono) {
 		for (++i; i < mono->nbr_fac; ++i) {
 			Factor next = vec_at(ctx->factors, mono->fac[i].val);
 
-			if (next.head.val != first.head.val)
+			if (next.head.val != first.head.val || next.nbr_der > 0)
 				break;
 
 			exponent = rat_add(exponent, next.exponent);
@@ -120,6 +98,13 @@ static size_t build_occurrences(Occurrence* out, const Context* ctx,
 			Occurrence occ = {.index = fac.indices[k],
 							  .bundle = symbol->slot_bundle[k],
 							  .pos = symbol->slot_pos[k]};
+			out[nbr_occ++] = occ;
+		}
+
+		for (u8 k = 0; k < fac.nbr_der; ++k) {
+			Occurrence occ = {.index = fac.der[k],
+							  .bundle = bundle_find_derivative(ctx),
+							  .pos = SLOT_DOWN};
 			out[nbr_occ++] = occ;
 		}
 	}
@@ -195,21 +180,20 @@ static void build_indices_with_dummies(Index* out, const Occurrence* occ,
 	}
 }
 
-// Replaces each tensor factor of `mono` by the same factor with its slice of
-// `indices_with_dummies`, laid out as `build_occurrences` lists them.
 static void rebuild_factors_with_dummies(Context* ctx, Monomial* mono,
 										 const Index* indices_with_dummies) {
 	size_t offset = 0;
 
 	for (u64 i = 0; i < mono->nbr_fac; ++i) {
 		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
-		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+		size_t nbr_index =
+			vec_at(ctx->symbols, fac.head.val).nbr_slot + fac.nbr_der;
 
-		if (nbr_slot == 0)
+		if (nbr_index == 0)
 			continue;
 
-		FacRef rebuilt = factor_intern(ctx, fac.head, fac.exponent,
-									   &indices_with_dummies[offset]);
+		FacRef rebuilt = factor_replace_indices(ctx, mono->fac[i],
+												&indices_with_dummies[offset]);
 
 		// The exponent and free indices were already accepted, and dummies are
 		// not checked: this cannot fail.
@@ -217,7 +201,7 @@ static void rebuild_factors_with_dummies(Context* ctx, Monomial* mono,
 			die("CCAE (mono_intern): rebuilt factor rejected.");
 
 		mono->fac[i] = rebuilt;
-		offset += nbr_slot;
+		offset += nbr_index;
 	}
 }
 
@@ -304,8 +288,8 @@ static u16 count_dummies(const Context* ctx, const Monomial* mono) {
 		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
 		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
 
-		for (u8 k = 0; k < nbr_slot; ++k) {
-			Index index = fac.indices[k];
+		for (u8 k = 0; k < nbr_slot + fac.nbr_der; ++k) {
+			Index index = k < nbr_slot ? fac.indices[k] : fac.der[k - nbr_slot];
 
 			if (index.kind == IDX_DUMMY && index.id >= nbr_dummy)
 				nbr_dummy = (u16)(index.id + 1);
@@ -319,15 +303,23 @@ static FacRef shift_dummies(Context* ctx, FacRef f, u16 id_shift) {
 	Factor fac = vec_at(ctx->factors, f.val);
 	u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
 
-	if (nbr_slot == 0 || id_shift == 0)
+	if (nbr_slot + fac.nbr_der == 0 || id_shift == 0)
 		return f;
 
-	for (u8 k = 0; k < nbr_slot; ++k) {
-		if (fac.indices[k].kind == IDX_DUMMY)
-			fac.indices[k].id = (u16)(fac.indices[k].id + id_shift);
+	Index indices[CCAE_MAX_SLOT + CCAE_MAX_DERIVATIVES];
+
+	for (u8 k = 0; k < nbr_slot; ++k)
+		indices[k] = fac.indices[k];
+
+	for (u8 k = 0; k < fac.nbr_der; ++k)
+		indices[nbr_slot + k] = fac.der[k];
+
+	for (u8 k = 0; k < nbr_slot + fac.nbr_der; ++k) {
+		if (indices[k].kind == IDX_DUMMY)
+			indices[k].id = (u16)(indices[k].id + id_shift);
 	}
 
-	FacRef shifted = factor_intern(ctx, fac.head, fac.exponent, fac.indices);
+	FacRef shifted = factor_replace_indices(ctx, f, indices);
 
 	if (shifted.val == 0)
 		die("CCAE (mono_mul): id shifted factor rejected.");

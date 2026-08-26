@@ -18,6 +18,7 @@ static size_t test_factor_bad_indices(void);
 static size_t test_factor_derive(void);
 static size_t test_factor_cmp(void);
 static size_t test_factor_replace_indices(void);
+static size_t test_factor_build_indices(void);
 
 size_t test_factor(void) {
 	size_t fails = 0;
@@ -29,6 +30,7 @@ size_t test_factor(void) {
 	fails += test_factor_derive();
 	fails += test_factor_cmp();
 	fails += test_factor_replace_indices();
+	fails += test_factor_build_indices();
 
 	return fails;
 }
@@ -337,6 +339,40 @@ static size_t test_factor_replace_indices(void) {
 
 	CHECK(factor_replace_indices(ctx, dX_ab, (Index[]){c, i, b}).val == 0);
 	ctx_clear_err(ctx);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_factor_build_indices(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	bundle_set_derivative(ctx, spatial);
+
+	SymRef T = symbol_declare_tensor(ctx, "T", SYM_FIELD, "^c_d", "", 0);
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	Index a = {IDX_FREE, 'a'};
+	Index b = {IDX_FREE, 'b'};
+
+	FacRef dT = factor_derive(
+		ctx, factor_derive(ctx, with_free_indices(ctx, T, "cd"), b), a);
+
+	Index indices[CCAE_MAX_FACTOR_INDICES];
+	CHECK(factor_build_indices(indices, ctx, dT) == 4);
+	CHECK(indices[0].id == 'c' && indices[1].id == 'd');
+	CHECK(indices[2].id == 'a' && indices[3].id == 'b');
+
+	// A scalar without derivative indices has none.
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	CHECK(factor_build_indices(indices, ctx, x_one) == 0);
 
 	ctx_destroy(ctx);
 

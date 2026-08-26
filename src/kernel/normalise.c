@@ -32,18 +32,10 @@ static bool replace_partner(Context* ctx, FacRef* facs, size_t nbr_fac,
 		if (i == skipped)
 			continue;
 
-		Factor fac = vec_at(ctx->factors, facs[i].val);
-		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+		Index indices[CCAE_MAX_FACTOR_INDICES];
+		size_t nbr_index = factor_build_indices(indices, ctx, facs[i]);
 
-		Index indices[CCAE_MAX_SLOT + CCAE_MAX_DERIVATIVES];
-
-		for (u8 k = 0; k < nbr_slot; ++k)
-			indices[k] = fac.indices[k];
-
-		for (u8 k = 0; k < fac.nbr_der; ++k)
-			indices[nbr_slot + k] = fac.der[k];
-
-		for (u8 k = 0; k < nbr_slot + fac.nbr_der; ++k) {
+		for (size_t k = 0; k < nbr_index; ++k) {
 			if (!index_equal(indices[k], dummy))
 				continue;
 

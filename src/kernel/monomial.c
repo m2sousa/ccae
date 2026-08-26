@@ -285,14 +285,12 @@ static u16 count_dummies(const Context* ctx, const Monomial* mono) {
 	u16 nbr_dummy = 0;
 
 	for (u64 i = 0; i < mono->nbr_fac; ++i) {
-		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
-		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+		Index indices[CCAE_MAX_FACTOR_INDICES];
+		size_t nbr_index = factor_build_indices(indices, ctx, mono->fac[i]);
 
-		for (u8 k = 0; k < nbr_slot + fac.nbr_der; ++k) {
-			Index index = k < nbr_slot ? fac.indices[k] : fac.der[k - nbr_slot];
-
-			if (index.kind == IDX_DUMMY && index.id >= nbr_dummy)
-				nbr_dummy = (u16)(index.id + 1);
+		for (size_t k = 0; k < nbr_index; ++k) {
+			if (indices[k].kind == IDX_DUMMY && indices[k].id >= nbr_dummy)
+				nbr_dummy = (u16)(indices[k].id + 1);
 		}
 	}
 
@@ -300,21 +298,13 @@ static u16 count_dummies(const Context* ctx, const Monomial* mono) {
 }
 
 static FacRef shift_dummies(Context* ctx, FacRef f, u16 id_shift) {
-	Factor fac = vec_at(ctx->factors, f.val);
-	u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+	Index indices[CCAE_MAX_FACTOR_INDICES];
+	size_t nbr_index = factor_build_indices(indices, ctx, f);
 
-	if (nbr_slot + fac.nbr_der == 0 || id_shift == 0)
+	if (nbr_index == 0 || id_shift == 0)
 		return f;
 
-	Index indices[CCAE_MAX_SLOT + CCAE_MAX_DERIVATIVES];
-
-	for (u8 k = 0; k < nbr_slot; ++k)
-		indices[k] = fac.indices[k];
-
-	for (u8 k = 0; k < fac.nbr_der; ++k)
-		indices[nbr_slot + k] = fac.der[k];
-
-	for (u8 k = 0; k < nbr_slot + fac.nbr_der; ++k) {
+	for (size_t k = 0; k < nbr_index; ++k) {
 		if (indices[k].kind == IDX_DUMMY)
 			indices[k].id = (u16)(indices[k].id + id_shift);
 	}

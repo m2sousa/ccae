@@ -58,4 +58,11 @@ typedef Vec(Factor) FactorVec;
  *		`factor_cmp(ctx, x_one, x_two)` is -1: `x` comes before `x²`. */
 [[nodiscard]] int factor_cmp(const Context* ctx, FacRef a, FacRef b);
 
+/* Writes into `out` the indices of `fac` (slots, then derivatives).
+ * Returns how many indices.
+ *
+ * Example:
+ *		`∂_a ∂_b X^c`, writes (c, a, b) and returns 3. */
+size_t factor_build_indices(Index* out, const Context* ctx, FacRef fac);
+
 #endif

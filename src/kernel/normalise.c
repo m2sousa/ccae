@@ -35,12 +35,20 @@ static bool replace_partner(Context* ctx, FacRef* facs, size_t nbr_fac,
 		Factor fac = vec_at(ctx->factors, facs[i].val);
 		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
 
-		for (u8 k = 0; k < nbr_slot; ++k) {
-			if (!index_equal(fac.indices[k], dummy))
+		Index indices[CCAE_MAX_SLOT + CCAE_MAX_DERIVATIVES];
+
+		for (u8 k = 0; k < nbr_slot; ++k)
+			indices[k] = fac.indices[k];
+
+		for (u8 k = 0; k < fac.nbr_der; ++k)
+			indices[nbr_slot + k] = fac.der[k];
+
+		for (u8 k = 0; k < nbr_slot + fac.nbr_der; ++k) {
+			if (!index_equal(indices[k], dummy))
 				continue;
 
-			fac.indices[k] = replacement;
-			facs[i] = factor_intern(ctx, fac.head, fac.exponent, fac.indices);
+			indices[k] = replacement;
+			facs[i] = factor_replace_indices(ctx, facs[i], indices);
 
 			if (facs[i].val == 0)
 				die("CCAE (normalise_term): factor rejected after absorption.");
@@ -157,6 +165,12 @@ static bool contract_inverse(Term* term, Context* ctx) {
 	return false;
 }
 
+static void ensure_free_indices_kept(const Context* ctx, MonoRef before,
+									 MonoRef after) {
+	if (!mono_free_indices_equal(ctx, before, after))
+		die("CCAE (normalise_term): a rule changed the free indices.");
+}
+
 // FIXME: This might be deleted once metrics are introduced and eps_down/_up are
 // removed for a single eps.
 typedef struct {
@@ -254,6 +268,8 @@ static size_t expand_epsilon_pair(Term* out, size_t capacity, Context* ctx,
 		if (expanded.mono.val == 0)
 			return 0;
 
+		ensure_free_indices_kept(ctx, term.mono, expanded.mono);
+
 		nbr_out +=
 			normalise_term(out + nbr_out, capacity - nbr_out, ctx, expanded);
 		if (!ctx_ok(ctx))
@@ -270,17 +286,23 @@ size_t normalise_term(Term* out, size_t capacity, Context* ctx, Term term) {
 	if (term.mono.val == 0 || term.mono.val >= ctx->monomials.length)
 		die("CCAE (normalise_term): monomial handle out of range.");
 
+	MonoRef original = term.mono;
+
 	for (size_t pass = 0; pass < CCAE_MAX_NORMALISE_PASSES; ++pass) {
 		int sign = 0;
 		term.mono = canon_mono(ctx, term.mono, &sign);
 		if (term.mono.val == 0 || sign == 0)
 			return 0;
 
+		ensure_free_indices_kept(ctx, original, term.mono);
+
 		term.coef = rat_mul(term.coef, rat_from_int(sign));
 
 		if (absorb_kronecker(&term, ctx) || contract_inverse(&term, ctx)) {
 			if (term.mono.val == 0)
 				return 0;
+
+			ensure_free_indices_kept(ctx, original, term.mono);
 
 			continue;
 		}

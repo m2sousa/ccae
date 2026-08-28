@@ -106,12 +106,13 @@ static bool contract_inverse(Term* term, Context* ctx) {
 	for (u64 i = 0; i < mono.nbr_fac; ++i) {
 		Factor fac = vec_at(ctx->factors, mono.fac[i].val);
 		const Symbol* symbol = &vec_at(ctx->symbols, fac.head.val);
-		if (symbol->inverse.val == 0)
+
+		if (symbol->inverse.val == 0 || fac.nbr_der > 0)
 			continue;
 
 		for (u64 j = 0; j < mono.nbr_fac; ++j) {
 			Factor partner = vec_at(ctx->factors, mono.fac[j].val);
-			if (partner.head.val != symbol->inverse.val)
+			if (partner.head.val != symbol->inverse.val || partner.nbr_der > 0)
 				continue;
 
 			for (u8 k = 0; k < 2; ++k) {

@@ -24,4 +24,10 @@ FacRef with_indices(Context* ctx, SymRef head, Index first, Index second);
  *		`with_free_indices(ctx, dE, "ai")` is `dE^a_i`. */
 FacRef with_free_indices(Context* ctx, SymRef head, const char* names);
 
+/* Returns `fac` with one free derivative index per character of `names`.
+ *
+ * Example:
+ *		`with_derivatives(ctx, X_c, "ab")` is `∂_a ∂_b X^c`. */
+FacRef with_derivatives(Context* ctx, FacRef fac, const char* names);
+
 #endif

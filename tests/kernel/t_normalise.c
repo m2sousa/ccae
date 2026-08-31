@@ -19,6 +19,7 @@ static size_t test_normalise_free_delta(void);
 static size_t test_normalise_epsilon_symmetric(void);
 static size_t test_normalise_epsilon_pair(void);
 static size_t test_normalise_inverse(void);
+static size_t test_normalise_inverse_derivative(void);
 
 size_t test_normalise(void) {
 	size_t fails = 0;
@@ -28,6 +29,7 @@ size_t test_normalise(void) {
 	fails += test_normalise_epsilon_symmetric();
 	fails += test_normalise_epsilon_pair();
 	fails += test_normalise_inverse();
+	fails += test_normalise_inverse_derivative();
 
 	return fails;
 }
@@ -306,6 +308,45 @@ static size_t test_normalise_inverse(void) {
 	FacRef triad_ai = with_free_indices(ctx, triad, "ai");
 	MonoRef lone = mono_intern(ctx, &triad_ai, 1);
 	CHECK(normalises_to(ctx, lone, 1, lone));
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_normalise_inverse_derivative(void) {
+	size_t fails = 0;
+
+	SymRef delta = {0};
+	Context* ctx = create_ctx_with_delta(&delta);
+	if (!ctx)
+		return 1;
+
+	bundle_set_derivative(ctx, bundle_find_by_index_name(ctx, 'a'));
+
+	BundleRef internal = bundle_declare(ctx, "internal", "ijklmn", 3);
+	SymRef delta_internal =
+		symbol_declare_tensor(ctx, "deltaInternal", SYM_CONST, "^i_j", "", 0);
+	bundle_set_kronecker(ctx, internal, delta_internal);
+
+	SymRef E = symbol_declare_tensor(ctx, "E", SYM_FIELD, "^a_i", "", 0);
+	SymRef E_inverse =
+		symbol_declare_tensor(ctx, "Einv", SYM_FIELD, "_a^i", "", 0);
+	symbol_set_inverse(ctx, E, E_inverse);
+	CHECK(ctx_ok(ctx));
+
+	// ∂_c E^a_i E_b^i is not δ^a_b: the derivative factor is not the inverse's
+	// partner.
+	FacRef facs[] = {
+		with_derivatives(ctx, with_free_indices(ctx, E, "ai"), "c"),
+		with_free_indices(ctx, E_inverse, "bi")};
+	Term term = {rat_from_int(1), mono_intern(ctx, facs, 2)};
+
+	Term out[1];
+	CHECK(normalise_term(out, 1, ctx, term) == 1);
+	CHECK(vec_at(ctx->monomials, out[0].mono.val).nbr_fac == 2);
 
 	CHECK(ctx_ok(ctx));
 

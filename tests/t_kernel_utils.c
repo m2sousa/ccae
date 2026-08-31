@@ -32,3 +32,10 @@ FacRef with_free_indices(Context* ctx, SymRef head, const char* names) {
 
 	return factor_intern(ctx, head, rat_from_int(1), indices);
 }
+
+FacRef with_derivatives(Context* ctx, FacRef fac, const char* names) {
+	for (size_t k = 0; k < strlen(names); ++k)
+		fac = factor_derive(ctx, fac, (Index){IDX_FREE, (u16)names[k]});
+
+	return fac;
+}

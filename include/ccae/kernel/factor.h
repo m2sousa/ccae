@@ -58,6 +58,13 @@ typedef Vec(Factor) FactorVec;
  *		`factor_cmp(ctx, x_one, x_two)` is -1: `x` comes before `x²`. */
 [[nodiscard]] int factor_cmp(const Context* ctx, FacRef a, FacRef b);
 
+/* Returns how many indices `fac` holds: one per slot and one per derivative
+ * index.
+ *
+ * Example:
+ *		for `∂_a ∂_b X^c`, returns 3. */
+[[nodiscard]] size_t factor_count_indices(const Context* ctx, FacRef fac);
+
 /* Writes into `out` the indices of `fac` (slots, then derivatives).
  * Returns how many indices.
  *

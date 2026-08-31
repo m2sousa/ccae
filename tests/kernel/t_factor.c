@@ -373,12 +373,14 @@ static size_t test_factor_build_indices(void) {
 
 	Index indices[CCAE_MAX_FACTOR_INDICES];
 	CHECK(factor_build_indices(indices, ctx, dT) == 4);
+	CHECK(factor_count_indices(ctx, dT) == 4);
 	CHECK(indices[0].id == 'c' && indices[1].id == 'd');
 	CHECK(indices[2].id == 'a' && indices[3].id == 'b');
 
 	// A scalar without derivative indices has none.
 	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 	CHECK(factor_build_indices(indices, ctx, x_one) == 0);
+	CHECK(factor_count_indices(ctx, x_one) == 0);
 
 	ctx_destroy(ctx);
 

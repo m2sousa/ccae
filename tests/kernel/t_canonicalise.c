@@ -15,16 +15,18 @@
 static size_t test_canonicalise_one_factor(void);
 static size_t test_canonicalise_dummies(void);
 static size_t test_canonicalise_zero(void);
-static size_t test_canonicalise_identical_factors(void);
+static size_t test_canonicalise_interchangeable_factors(void);
 static size_t test_canonicalise_relabellings(void);
+static size_t test_canonicalise_derivatives(void);
 
 size_t test_canonicalise(void) {
 	size_t fails = 0;
 	fails += test_canonicalise_one_factor();
 	fails += test_canonicalise_dummies();
 	fails += test_canonicalise_zero();
-	fails += test_canonicalise_identical_factors();
+	fails += test_canonicalise_interchangeable_factors();
 	fails += test_canonicalise_relabellings();
+	fails += test_canonicalise_derivatives();
 
 	return fails;
 }
@@ -51,6 +53,11 @@ static bool canonicalises_to(Context* ctx, MonoRef m, MonoRef expected,
 	return canonical.val == expected.val && sign == expected_sign;
 }
 
+// Whether `m` is already canonical: it comes back unchanged, with sign +1.
+static bool is_canonical(Context* ctx, MonoRef m) {
+	return canonicalises_to(ctx, m, m, 1);
+}
+
 static size_t test_canonicalise_one_factor(void) {
 	size_t fails = 0;
 
@@ -70,11 +77,11 @@ static size_t test_canonicalise_one_factor(void) {
 
 	MonoRef g_ab = one_factor(ctx, g, "ab");
 	CHECK(canonicalises_to(ctx, one_factor(ctx, g, "ba"), g_ab, 1));
-	CHECK(canonicalises_to(ctx, g_ab, g_ab, 1));
+	CHECK(is_canonical(ctx, g_ab));
 
 	MonoRef A_ab = one_factor(ctx, A, "ab");
 	CHECK(canonicalises_to(ctx, one_factor(ctx, A, "ba"), A_ab, -1));
-	CHECK(canonicalises_to(ctx, A_ab, A_ab, 1));
+	CHECK(is_canonical(ctx, A_ab));
 
 	// A cycle of three slots is even, one swap is odd.
 	MonoRef eps_abc = one_factor(ctx, eps, "abc");
@@ -83,7 +90,7 @@ static size_t test_canonicalise_one_factor(void) {
 
 	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 	MonoRef x_mono = mono_intern(ctx, &x_one, 1);
-	CHECK(canonicalises_to(ctx, x_mono, x_mono, 1));
+	CHECK(is_canonical(ctx, x_mono));
 
 	CHECK(ctx_ok(ctx));
 
@@ -115,7 +122,7 @@ static size_t test_canonicalise_dummies(void) {
 
 	CHECK(canonicalises_to(ctx, crossed, canonical, 1));
 	CHECK(canonicalises_to(ctx, relabelled, canonical, 1));
-	CHECK(canonicalises_to(ctx, canonical, canonical, 1));
+	CHECK(is_canonical(ctx, canonical));
 	CHECK(sign == 1);
 
 	CHECK(ctx_ok(ctx));
@@ -163,7 +170,7 @@ static size_t test_canonicalise_zero(void) {
 	return fails;
 }
 
-static size_t test_canonicalise_identical_factors(void) {
+static size_t test_canonicalise_interchangeable_factors(void) {
 	size_t fails = 0;
 
 	Context* ctx = ctx_create();
@@ -183,7 +190,7 @@ static size_t test_canonicalise_identical_factors(void) {
 					  with_free_indices(ctx, x, "b")};
 	CHECK(canonical_sign(ctx, mono_intern(ctx, A_x_x, 3)) == 0);
 
-	// x and y are not identical, so they cannot trade places.
+	// x and y are not interchangeable, so they cannot trade places.
 	FacRef A_x_y[] = {with_free_indices(ctx, A, "ab"),
 					  with_free_indices(ctx, x, "a"),
 					  with_free_indices(ctx, y, "b")};
@@ -233,11 +240,80 @@ static size_t test_canonicalise_relabellings(void) {
 	CHECK(canonicalises_to(
 		ctx, four_factors(ctx, dE, dK, "aj", "bi", "ia", "jb"), canonical, 1));
 
-	CHECK(canonicalises_to(ctx, canonical, canonical, 1));
+	CHECK(is_canonical(ctx, canonical));
 
 	// dE^a_i dE^b_j dK^i_a dK^j_b: two separate loops, a different monomial.
 	MonoRef two_loops = four_factors(ctx, dE, dK, "ai", "bj", "ia", "jb");
 	CHECK(canon_mono(ctx, two_loops, &sign).val != canonical.val);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static MonoRef canonical_of(Context* ctx, const FacRef* facs, size_t nbr_fac,
+							int* sign) {
+	return canon_mono(ctx, mono_intern(ctx, facs, nbr_fac), sign);
+}
+
+static size_t test_canonicalise_derivatives(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
+	bundle_set_derivative(ctx, spatial);
+
+	SymRef X = symbol_declare_tensor(ctx, "X", SYM_FIELD, "", "", 0);
+	SymRef A =
+		symbol_declare_tensor(ctx, "A", SYM_FIELD, "^a^b", "antisym(0,1)", 0);
+	SymRef T =
+		symbol_declare_tensor(ctx, "T", SYM_FIELD, "_a_b", "sym(0,1)", 0);
+	SymRef U = symbol_declare_tensor(ctx, "U", SYM_FIELD, "^a^b", "", 0);
+	SymRef V = symbol_declare_tensor(ctx, "V", SYM_FIELD, "^a", "", 0);
+	SymRef Y = symbol_declare_tensor(ctx, "Y", SYM_FIELD, "^a", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	int sign = 0;
+	int other_sign = 0;
+
+	// The derivative index survives canonicalisation: ∂_a V^b stays.
+	FacRef dV = with_derivatives(ctx, with_free_indices(ctx, V, "b"), "a");
+	MonoRef dV_mono = mono_intern(ctx, &dV, 1);
+	CHECK(is_canonical(ctx, dV_mono));
+
+	// ∂_a ∂_b A^{ab}: symmetric derivatives, antisymmetric slots.
+	FacRef ddA = with_derivatives(ctx, with_free_indices(ctx, A, "ab"), "ab");
+	CHECK(canonical_of(ctx, &ddA, 1, &sign).val != 0);
+	CHECK(sign == 0);
+
+	// ∂_a T_{bc} U^{ab} V^c = ∂_a T_{cb} U^{ab} V^c: a slot symmetry next to a
+	// derivative index.
+	FacRef with_bc[] = {
+		with_derivatives(ctx, with_free_indices(ctx, T, "bc"), "a"),
+		with_free_indices(ctx, U, "ab"), with_free_indices(ctx, V, "c")};
+	FacRef with_cb[] = {
+		with_derivatives(ctx, with_free_indices(ctx, T, "cb"), "a"),
+		with_free_indices(ctx, U, "ab"), with_free_indices(ctx, V, "c")};
+	CHECK(canonical_of(ctx, with_bc, 3, &sign).val ==
+		  canonical_of(ctx, with_cb, 3, &other_sign).val);
+	CHECK(sign == 1 && other_sign == 1);
+
+	// ∂_a ∂_b X V^a Y^b = ∂_a ∂_b X V^b Y^a: the derivatives commute in the
+	// canonicalise through permutations (not sorting!).
+	FacRef ddX = with_derivatives(
+		ctx, factor_intern(ctx, X, rat_from_int(1), NULL), "ab");
+	FacRef V_then_Y[] = {ddX, with_free_indices(ctx, V, "a"),
+						 with_free_indices(ctx, Y, "b")};
+	FacRef Y_then_V[] = {ddX, with_free_indices(ctx, V, "b"),
+						 with_free_indices(ctx, Y, "a")};
+	CHECK(canonical_of(ctx, V_then_Y, 3, &sign).val ==
+		  canonical_of(ctx, Y_then_V, 3, &other_sign).val);
+	CHECK(sign == 1 && other_sign == 1);
 
 	CHECK(ctx_ok(ctx));
 

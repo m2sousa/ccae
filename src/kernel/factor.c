@@ -251,6 +251,15 @@ int factor_cmp(const Context* ctx, FacRef a, FacRef b) {
 	return 0;
 }
 
+size_t factor_count_indices(const Context* ctx, FacRef fac_ref) {
+	if (fac_ref.val == 0 || fac_ref.val >= ctx->factors.length)
+		die("CCAE (factor_count_indices): factor handle out of range.");
+
+	const Factor* fac = &vec_at(ctx->factors, fac_ref.val);
+
+	return vec_at(ctx->symbols, fac->head.val).nbr_slot + fac->nbr_der;
+}
+
 size_t factor_build_indices(Index* out, const Context* ctx, FacRef fac_ref) {
 	if (fac_ref.val == 0 || fac_ref.val >= ctx->factors.length)
 		die("CCAE (factor_build_indices): factor handle out of range.");
@@ -264,5 +273,5 @@ size_t factor_build_indices(Index* out, const Context* ctx, FacRef fac_ref) {
 	for (u8 k = 0; k < fac->nbr_der; ++k)
 		out[nbr_slot + k] = fac->der[k];
 
-	return nbr_slot + fac->nbr_der;
+	return factor_count_indices(ctx, fac_ref);
 }

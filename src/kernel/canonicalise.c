@@ -45,10 +45,12 @@ static void renumber_dummies(Index* indices, size_t nbr_index) {
 }
 
 // Place f holds the tensor factor `tensors[tensor_order[f]]`, rearranged by
-// the element `tensor_perm_number[f]` of its orbit.
+// the element `tensor_perm_number[f]` of its orbit, then its derivative indices
+// in the order `der_order[f]`.
 static void build_arrangement(Arrangement* out, const Context* ctx,
 							  const Factor* tensors, const u8* tensor_order,
 							  const u16* tensor_perm_number,
+							  const u8 (*der_order)[CCAE_MAX_DERIVATIVES],
 							  size_t nbr_tensor) {
 	size_t offset = 0;
 	out->sign = 1;
@@ -56,13 +58,22 @@ static void build_arrangement(Arrangement* out, const Context* ctx,
 	for (size_t f = 0; f < nbr_tensor; ++f) {
 		const Factor* fac = &tensors[tensor_order[f]];
 		const Symbol* symbol = &vec_at(ctx->symbols, fac->head.val);
-		SignedPerm perm = symbol->orbit->perms[tensor_perm_number[f]];
+
+		SignedPerm perm = symbol->nbr_slot > 0
+							  ? symbol->orbit->perms[tensor_perm_number[f]]
+							  : signed_perm_identity();
 
 		for (u8 k = 0; k < symbol->nbr_slot; ++k)
 			out->indices[offset + perm.image[k]] = fac->indices[k];
 
 		out->sign *= perm.sign;
 		offset += symbol->nbr_slot;
+
+		// Derivatives commute: any order of them, with no sign.
+		for (u8 k = 0; k < fac->nbr_der; ++k)
+			out->indices[offset + k] = fac->der[der_order[f][k]];
+
+		offset += fac->nbr_der;
 	}
 
 	renumber_dummies(out->indices, offset);
@@ -80,21 +91,6 @@ static int arrangement_cmp(const Arrangement* a, const Arrangement* b,
 	return 0;
 }
 
-static bool next_tensor_perm_number(u16* tensor_perm_number, const Context* ctx,
-									const Factor* tensors, size_t nbr_tensor) {
-	for (size_t f = 0; f < nbr_tensor; ++f) {
-		const Symbol* symbol = &vec_at(ctx->symbols, tensors[f].head.val);
-
-		tensor_perm_number[f] += 1;
-		if (tensor_perm_number[f] < symbol->orbit->nbr_perm)
-			return true;
-
-		tensor_perm_number[f] = 0;
-	}
-
-	return false;
-}
-
 static void reverse(u8* values, size_t first, size_t end) {
 	while (first + 1 < end) {
 		--end;
@@ -107,8 +103,9 @@ static void reverse(u8* values, size_t first, size_t end) {
 	}
 }
 
-static bool are_identical(const Factor* a, const Factor* b) {
-	return a->head.val == b->head.val && rat_cmp(a->exponent, b->exponent) == 0;
+static bool are_interchangeable(const Factor* a, const Factor* b) {
+	return a->head.val == b->head.val &&
+		   rat_cmp(a->exponent, b->exponent) == 0 && a->nbr_der == b->nbr_der;
 }
 
 // Moves `order[first .. end)` to its next permutation in dictionary order.
@@ -138,6 +135,30 @@ static bool next_permutation(u8* order, size_t first, size_t end) {
 	return true;
 }
 
+static bool next_tensor_perm_number(u16* tensor_perm_number,
+									u8 (*der_order)[CCAE_MAX_DERIVATIVES],
+									const Context* ctx, const Factor* tensors,
+									size_t nbr_tensor) {
+	for (size_t f = 0; f < nbr_tensor; ++f) {
+		u8 nbr_der = tensors[f].nbr_der;
+		if (nbr_der > 1 && next_permutation(der_order[f], 0, nbr_der))
+			return true;
+
+		const Symbol* symbol = &vec_at(ctx->symbols, tensors[f].head.val);
+
+		// A scalar has no orbit, only the identity.
+		u16 nbr_perm = symbol->nbr_slot > 0 ? symbol->orbit->nbr_perm : 1;
+
+		tensor_perm_number[f] += 1;
+		if (tensor_perm_number[f] < nbr_perm)
+			return true;
+
+		tensor_perm_number[f] = 0;
+	}
+
+	return false;
+}
+
 static bool next_tensor_order(u8* tensor_order, const Factor* tensors,
 							  size_t nbr_tensor) {
 	size_t first = 0;
@@ -145,7 +166,7 @@ static bool next_tensor_order(u8* tensor_order, const Factor* tensors,
 	while (first < nbr_tensor) {
 		size_t end = first + 1;
 		while (end < nbr_tensor &&
-			   are_identical(&tensors[first], &tensors[end]))
+			   are_interchangeable(&tensors[first], &tensors[end]))
 			++end;
 
 		if (end - first > 1 && next_permutation(tensor_order, first, end))
@@ -158,31 +179,33 @@ static bool next_tensor_order(u8* tensor_order, const Factor* tensors,
 }
 
 // Interns the monomial `mono` with its tensor factors indices written as the
-// `best` arrangement.
+// `best` arrangement. Place f takes the indices of `tensor_refs[f].
 static MonoRef build_monomial(Context* ctx, const Monomial* mono,
+							  const FacRef* tensor_refs, size_t nbr_tensor,
 							  const Arrangement* best) {
 	FacRef facs[CCAE_MAX_FACTORS];
-	size_t offset = 0;
+	size_t nbr_fac = 0;
 
 	for (u64 i = 0; i < mono->nbr_fac; ++i) {
-		Factor fac = vec_at(ctx->factors, mono->fac[i].val);
-		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
-
-		if (nbr_slot == 0) {
-			facs[i] = mono->fac[i];
-			continue;
-		}
-
-		facs[i] =
-			factor_intern(ctx, fac.head, fac.exponent, &best->indices[offset]);
-
-		if (facs[i].val == 0)
-			die("CCAE (canon_mono): arranged factor rejected.");
-
-		offset += nbr_slot;
+		if (factor_count_indices(ctx, mono->fac[i]) == 0)
+			facs[nbr_fac++] = mono->fac[i];
 	}
 
-	return mono_intern(ctx, facs, mono->nbr_fac);
+	size_t offset = 0;
+
+	for (size_t f = 0; f < nbr_tensor; ++f) {
+		size_t nbr_index = factor_count_indices(ctx, tensor_refs[f]);
+
+		facs[nbr_fac] =
+			factor_replace_indices(ctx, tensor_refs[f], &best->indices[offset]);
+		if (facs[nbr_fac].val == 0)
+			die("CCAE (canon_mono): arranged factor rejected.");
+
+		++nbr_fac;
+		offset += nbr_index;
+	}
+
+	return mono_intern(ctx, facs, nbr_fac);
 }
 
 MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
@@ -197,18 +220,19 @@ MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
 	Monomial mono = vec_at(ctx->monomials, m.val);
 
 	Factor tensors[CCAE_MAX_FACTORS] = {};
+	FacRef tensor_refs[CCAE_MAX_FACTORS] = {};
 	size_t nbr_tensor = 0;
 	size_t nbr_index = 0;
 
 	for (u64 i = 0; i < mono.nbr_fac; ++i) {
-		Factor fac = vec_at(ctx->factors, mono.fac[i].val);
-		u8 nbr_slot = vec_at(ctx->symbols, fac.head.val).nbr_slot;
+		size_t nbr_fac_index = factor_count_indices(ctx, mono.fac[i]);
 
-		if (nbr_slot == 0)
+		if (nbr_fac_index == 0)
 			continue;
 
-		tensors[nbr_tensor++] = fac;
-		nbr_index += nbr_slot;
+		tensor_refs[nbr_tensor] = mono.fac[i];
+		tensors[nbr_tensor++] = vec_at(ctx->factors, mono.fac[i].val);
+		nbr_index += nbr_fac_index;
 	}
 
 	// `tensor_order` is an array for which entry represents its position in the
@@ -223,20 +247,29 @@ MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
 	// entry being zero: all permutation being the identity (symbol->orbit[0] is
 	// **always** the identify by construction).
 	u16 tensor_perm_number[CCAE_MAX_FACTORS] = {};
+
+	// `der_order[f]` is the order in which place f writes its derivative
+	// indices. It starts as the stored order.
+	u8 der_order[CCAE_MAX_FACTORS][CCAE_MAX_DERIVATIVES];
+	for (size_t f = 0; f < nbr_tensor; ++f) {
+		for (u8 k = 0; k < tensors[f].nbr_der; ++k)
+			der_order[f][k] = k;
+	}
+
 	Arrangement best = {};
 	Arrangement current = {};
 
 	// Therefore, at first, the best entry is the one with identities applied
 	// and at their initial position.
 	build_arrangement(&best, ctx, tensors, tensor_order, tensor_perm_number,
-					  nbr_tensor);
+					  der_order, nbr_tensor);
 
 	bool equals_its_negative = false;
 
 	do {
 		do {
 			build_arrangement(&current, ctx, tensors, tensor_order,
-							  tensor_perm_number, nbr_tensor);
+							  tensor_perm_number, der_order, nbr_tensor);
 
 			int order = arrangement_cmp(&current, &best, nbr_index);
 
@@ -247,11 +280,11 @@ MonoRef canon_mono(Context* ctx, MonoRef m, int* sign) {
 				// Same arrangement of indices, but the other sign: x = -x.
 				equals_its_negative = true;
 			}
-		} while (next_tensor_perm_number(tensor_perm_number, ctx, tensors,
-										 nbr_tensor));
+		} while (next_tensor_perm_number(tensor_perm_number, der_order, ctx,
+										 tensors, nbr_tensor));
 	} while (next_tensor_order(tensor_order, tensors, nbr_tensor));
 
 	*sign = equals_its_negative ? 0 : best.sign;
 
-	return build_monomial(ctx, &mono, &best);
+	return build_monomial(ctx, &mono, tensor_refs, nbr_tensor, &best);
 }

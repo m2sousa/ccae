@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -std=c23 -Iinclude \
 		 -Wall -Wextra -Wpedantic -Wconversion -Wshadow -Wstrict-prototypes \
-		 -g -fsanitize=address,undefined -fno-omit-frame-pointer
+		 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fPIC
 
 SRC := $(shell find src -name '*.c')
 OBJ := $(patsubst src/%.c, build/%.o, $(SRC))
@@ -9,11 +9,10 @@ OBJ := $(patsubst src/%.c, build/%.o, $(SRC))
 TEST_SRC := $(shell find tests -name '*.c')
 TEST_OBJ := $(patsubst tests/%.c, build/tests/%.o, $(TEST_SRC))
 
-build/ccae: $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+build/libccae.so: $(OBJ)
+	$(CC) $(CFLAGS) -shared -o $@ $^
 
-# Filter-out build/main.o to avoid collision with the runner entry point while linking.
-build/ccae-tests: $(filter-out build/main.o, $(OBJ)) $(TEST_OBJ)
+build/ccae-tests: $(OBJ) $(TEST_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
 build/%.o: src/%.c
@@ -28,7 +27,7 @@ build/tests/%.o: tests/%.c
 -include $(TEST_OBJ:.o=.d)
 
 .PHONY: all clean lsp tests
-all: build/ccae build/ccae-tests
+all: build/libccae.so build/ccae-tests
 clean:
 	rm -rf ./build/*
 

@@ -135,6 +135,9 @@ static bool check_derivative_index(Context* ctx, const Symbol* symbol,
 	if (space.val == 0)
 		return reject_factor(ctx, symbol, "no bundle carries the derivative");
 
+	if (!rat_is_one(fac->exponent))
+		return reject_factor(ctx, symbol, "derivative of a power");
+
 	if (symbol->flags & F_CONST_IN_SPACE)
 		return reject_factor(ctx, symbol, "derivative of a constant in space");
 

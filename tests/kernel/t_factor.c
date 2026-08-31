@@ -238,7 +238,13 @@ static size_t test_factor_derive(void) {
 	CHECK(d_ab.val != 0 && d_ab.val == d_ba.val);
 	CHECK(vec_at(ctx->factors, d_ab.val).nbr_der == 2);
 
-	// Refused: an internal index, a constant in space, too many indices.
+	// Refused: a power, an internal index, a constant in space, too many
+	// indices.
+	SymRef y = symbol_declare_tensor(ctx, "y", SYM_FIELD, "", "", 0);
+	FacRef y_two = factor_intern(ctx, y, rat_from_int(2), NULL);
+	CHECK(factor_derive(ctx, y_two, a).val == 0);
+	ctx_clear_err(ctx);
+
 	CHECK(factor_derive(ctx, X_c, i).val == 0);
 	ctx_clear_err(ctx);
 

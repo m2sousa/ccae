@@ -27,19 +27,30 @@ static void put_rational(PrintBuffer* out, Rational r) {
 	put_string(out, text);
 }
 
+static void put_index(PrintBuffer* out, Index index) {
+	if (index.kind == IDX_FREE) {
+		put_char(out, (char)index.id);
+		return;
+	}
+
+	put_char(out, '$');
+	put_u64(out, index.id);
+}
+
+// The slots, each with its position mark, then the derivative indices in comma
+// notation: `X^c,ab` is `∂_a ∂_b X^c`.
 static void put_indices_as_sexpr(PrintBuffer* out, const Symbol* symbol,
-								 const Index* indices) {
+								 const Factor* factor) {
 	for (u8 k = 0; k < symbol->nbr_slot; ++k) {
 		put_char(out, symbol->slot_pos[k] == SLOT_UP ? '^' : '_');
-
-		if (indices[k].kind == IDX_FREE) {
-			put_char(out, (char)indices[k].id);
-			continue;
-		}
-
-		put_char(out, '$');
-		put_u64(out, indices[k].id);
+		put_index(out, factor->indices[k]);
 	}
+
+	if (factor->nbr_der > 0)
+		put_char(out, ',');
+
+	for (u8 k = 0; k < factor->nbr_der; ++k)
+		put_index(out, factor->der[k]);
 }
 
 static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
@@ -50,13 +61,13 @@ static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 
 	if (rat_is_one(factor.exponent)) {
 		put_string(out, name);
-		put_indices_as_sexpr(out, symbol, factor.indices);
+		put_indices_as_sexpr(out, symbol, &factor);
 		return;
 	}
 
 	put_string(out, "(^ ");
 	put_string(out, name);
-	put_indices_as_sexpr(out, symbol, factor.indices);
+	put_indices_as_sexpr(out, symbol, &factor);
 	put_char(out, ' ');
 	put_rational(out, factor.exponent);
 	put_char(out, ')');
@@ -265,8 +276,9 @@ static bool read_index(Index* out, const char** s, const char* end) {
 	return true;
 }
 
-static bool read_indices(Index* out, Context* ctx, const Symbol* symbol,
-						 const char* text, size_t length) {
+static bool read_indices(Index* out, Index* der, u8* nbr_der, Context* ctx,
+						 const Symbol* symbol, const char* text,
+						 size_t length) {
 	const char* s = text;
 	const char* end = text + length;
 
@@ -282,6 +294,20 @@ static bool read_indices(Index* out, Context* ctx, const Symbol* symbol,
 			return reject_indices(ctx, symbol, text, length);
 	}
 
+	*nbr_der = 0;
+
+	if (s < end && *s == ',') {
+		++s;
+
+		do {
+			if (*nbr_der == CCAE_MAX_DERIVATIVES ||
+				!read_index(&der[*nbr_der], &s, end))
+				return reject_indices(ctx, symbol, text, length);
+
+			*nbr_der += 1;
+		} while (s < end);
+	}
+
 	if (s != end)
 		return reject_indices(ctx, symbol, text, length);
 
@@ -295,7 +321,7 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 	size_t name_length = 0;
 
 	while (name_length < length && token[name_length] != '^' &&
-		   token[name_length] != '_')
+		   token[name_length] != '_' && token[name_length] != ',')
 		++name_length;
 
 	SymRef sym = find_symbol(r->ctx, token, name_length);
@@ -309,13 +335,20 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 
 	Symbol symbol = vec_at(r->ctx->symbols, sym.val);
 	Index indices[CCAE_MAX_SLOT];
+	Index der[CCAE_MAX_DERIVATIVES];
+	u8 nbr_der = 0;
 
-	if (!read_indices(indices, r->ctx, &symbol, token + name_length,
-					  length - name_length))
+	if (!read_indices(indices, der, &nbr_der, r->ctx, &symbol,
+					  token + name_length, length - name_length))
 		return null_ref;
 
-	return factor_intern(r->ctx, sym, exponent,
-						 symbol.nbr_slot > 0 ? indices : NULL);
+	FacRef fac = factor_intern(r->ctx, sym, exponent,
+							   symbol.nbr_slot > 0 ? indices : NULL);
+
+	for (u8 k = 0; k < nbr_der; ++k)
+		fac = factor_derive(r->ctx, fac, der[k]);
+
+	return fac;
 }
 
 static ExprRef build_expr_from_rational(Context* ctx, Rational coef) {

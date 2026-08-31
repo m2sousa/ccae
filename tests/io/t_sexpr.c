@@ -3,6 +3,7 @@
 
 #include <ccae/core/rational.h>
 #include <ccae/io/sexpr.h>
+#include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
 #include <ccae/kernel/factor.h>
@@ -26,6 +27,7 @@ static size_t test_sexpr_read_indices(void);
 static size_t test_sexpr_bad_indices(void);
 static size_t test_sexpr_read_dummies(void);
 static size_t test_sexpr_bad_dummies(void);
+static size_t test_sexpr_derivatives(void);
 
 size_t test_sexpr(void) {
 	size_t fails = 0;
@@ -42,6 +44,7 @@ size_t test_sexpr(void) {
 	fails += test_sexpr_bad_indices();
 	fails += test_sexpr_read_dummies();
 	fails += test_sexpr_bad_dummies();
+	fails += test_sexpr_derivatives();
 
 	return fails;
 }
@@ -498,6 +501,50 @@ static size_t test_sexpr_bad_dummies(void) {
 
 	// The halves of `$0` are in two monomials.
 	CHECK(fails_to_read(ctx, "(* dE^a_$0 (+ dK^$0_b))"));
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_derivatives(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef dE = {0};
+	SymRef dK = {0};
+	CHECK(declare_canonical_pair(ctx, &dE, &dK));
+	bundle_set_derivative(ctx, bundle_find_by_index_name(ctx, 'a'));
+
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", 0);
+	CHECK(x.val != 0 && p.val != 0);
+
+	// `dE^a_i,bc` is ∂_b ∂_c dE^a_i.
+	CHECK(round_trips(ctx, "dE^a_i,b"));
+	CHECK(round_trips(ctx, "dE^a_i,bc"));
+	CHECK(round_trips(ctx, "x,a"));
+	CHECK(round_trips(ctx, "(* x x,a)"));
+
+	// ∂_a dE^a_i.
+	CHECK(round_trips(ctx, "dE^$0_i,$0"));
+
+	// The derivative indices are read in any order, printed sorted.
+	ExprRef cb = read_sexpr(ctx, "dE^a_i,cb");
+	CHECK(cb.val != 0 && cb.val == read_sexpr(ctx, "dE^a_i,bc").val);
+
+	// Refused: nothing after the comma, an internal index, a constant in space,
+	// a power, and ∂_a dK^i_a (both down).
+	CHECK(fails_to_read(ctx, "dE^a_i,"));
+	CHECK(fails_to_read(ctx, "dE^a_i,j"));
+	CHECK(fails_to_read(ctx, "p,a"));
+	CHECK(fails_to_read(ctx, "(^ x,a 2)"));
+	CHECK(fails_to_read(ctx, "dK^i_a,a"));
 
 	CHECK(ctx_ok(ctx));
 

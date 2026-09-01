@@ -22,6 +22,7 @@
 	X(expr)                                                                    \
 	X(print)                                                                   \
 	X(sexpr)                                                                   \
+	X(derivative)                                                              \
 	X(dbm24)
 
 // Holy f*ck, that's my first (useful) X-Macro !

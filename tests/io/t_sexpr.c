@@ -28,6 +28,7 @@ static size_t test_sexpr_bad_indices(void);
 static size_t test_sexpr_read_dummies(void);
 static size_t test_sexpr_bad_dummies(void);
 static size_t test_sexpr_derivatives(void);
+static size_t test_sexpr_partials(void);
 
 size_t test_sexpr(void) {
 	size_t fails = 0;
@@ -45,6 +46,7 @@ size_t test_sexpr(void) {
 	fails += test_sexpr_read_dummies();
 	fails += test_sexpr_bad_dummies();
 	fails += test_sexpr_derivatives();
+	fails += test_sexpr_partials();
 
 	return fails;
 }
@@ -545,6 +547,40 @@ static size_t test_sexpr_derivatives(void) {
 	CHECK(fails_to_read(ctx, "p,a"));
 	CHECK(fails_to_read(ctx, "(^ x,a 2)"));
 	CHECK(fails_to_read(ctx, "dK^i_a,a"));
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_sexpr_partials(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef c = symbol_declare_homog(ctx, "c", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", 0);
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	SymRef g = symbol_declare_undet_fn(ctx, "g", 2, (SymRef[]){c, p}, 0);
+	CHECK(x.val != 0 && g.val != 0);
+
+	// Semicolon notation: `g;c;c;p` is ∂_c² ∂_p g.
+	CHECK(round_trips(ctx, "g;c"));
+	CHECK(round_trips(ctx, "g;c;p"));
+	CHECK(round_trips(ctx, "g;c;c;p"));
+	CHECK(round_trips(ctx, "(* g g;c)"));
+
+	ExprRef pc = read_sexpr(ctx, "g;p;c");
+	CHECK(pc.val != 0 && pc.val == read_sexpr(ctx, "g;c;p").val);
+
+	CHECK(fails_to_read(ctx, "g;x"));
+	CHECK(fails_to_read(ctx, "g;"));
+	CHECK(fails_to_read(ctx, "x;c"));
+	CHECK(fails_to_read(ctx, "(^ g;c 2)"));
 
 	CHECK(ctx_ok(ctx));
 

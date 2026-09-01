@@ -53,6 +53,18 @@ static void put_indices_as_sexpr(PrintBuffer* out, const Symbol* symbol,
 		put_index(out, factor->der[k]);
 }
 
+static void put_partials_as_sexpr(PrintBuffer* out, const Context* ctx,
+								  const Symbol* symbol, const Factor* factor) {
+	for (u8 k = 0; k < symbol->nbr_arg; ++k) {
+		const Symbol* arg = &vec_at(ctx->symbols, symbol->args[k].val);
+
+		for (u8 n = 0; n < factor->partial_order[k]; ++n) {
+			put_char(out, ';');
+			put_string(out, sp_get(ctx->sp, arg->name));
+		}
+	}
+}
+
 static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 								FacRef f) {
 	Factor factor = vec_at(ctx->factors, f.val);
@@ -62,12 +74,14 @@ static void put_factor_as_sexpr(PrintBuffer* out, const Context* ctx,
 	if (rat_is_one(factor.exponent)) {
 		put_string(out, name);
 		put_indices_as_sexpr(out, symbol, &factor);
+		put_partials_as_sexpr(out, ctx, symbol, &factor);
 		return;
 	}
 
 	put_string(out, "(^ ");
 	put_string(out, name);
 	put_indices_as_sexpr(out, symbol, &factor);
+	put_partials_as_sexpr(out, ctx, symbol, &factor);
 	put_char(out, ' ');
 	put_rational(out, factor.exponent);
 	put_char(out, ')');
@@ -314,6 +328,46 @@ static bool read_indices(Index* out, Index* der, u8* nbr_der, Context* ctx,
 	return true;
 }
 
+static u8 find_argument(const Context* ctx, const Symbol* symbol,
+						const char* name, size_t length) {
+	for (u8 k = 0; k < symbol->nbr_arg; ++k) {
+		const char* arg =
+			sp_get(ctx->sp, vec_at(ctx->symbols, symbol->args[k].val).name);
+
+		if (strlen(arg) == length && memcmp(arg, name, length) == 0)
+			return k;
+	}
+
+	return symbol->nbr_arg;
+}
+
+static FacRef read_partials(Reader* r, FacRef fac, const Symbol* symbol,
+							const char* text, size_t length) {
+	FacRef null_ref = {.val = 0};
+
+	const char* s = text;
+	const char* end = text + length;
+
+	while (s < end) {
+		const char* name = ++s;
+		while (s < end && *s != ';')
+			++s;
+
+		u8 arg = find_argument(r->ctx, symbol, name, (size_t)(s - name));
+
+		if (arg == symbol->nbr_arg) {
+			err_set(&r->ctx->err, CCAE_INVALID_ARG,
+					"s-expression: '%.*s' is not an argument of '%s'.",
+					(int)(s - name), name, sp_get(r->ctx->sp, symbol->name));
+			return null_ref;
+		}
+
+		fac = factor_partial(r->ctx, fac, arg);
+	}
+
+	return fac;
+}
+
 static FacRef read_factor(Reader* r, const char* token, size_t length,
 						  Rational exponent) {
 	FacRef null_ref = {.val = 0};
@@ -321,7 +375,8 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 	size_t name_length = 0;
 
 	while (name_length < length && token[name_length] != '^' &&
-		   token[name_length] != '_' && token[name_length] != ',')
+		   token[name_length] != '_' && token[name_length] != ',' &&
+		   token[name_length] != ';')
 		++name_length;
 
 	SymRef sym = find_symbol(r->ctx, token, name_length);
@@ -333,13 +388,17 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 		return null_ref;
 	}
 
+	size_t indices_end = name_length;
+	while (indices_end < length && token[indices_end] != ';')
+		++indices_end;
+
 	Symbol symbol = vec_at(r->ctx->symbols, sym.val);
 	Index indices[CCAE_MAX_SLOT];
 	Index der[CCAE_MAX_DERIVATIVES];
 	u8 nbr_der = 0;
 
 	if (!read_indices(indices, der, &nbr_der, r->ctx, &symbol,
-					  token + name_length, length - name_length))
+					  token + name_length, indices_end - name_length))
 		return null_ref;
 
 	FacRef fac = factor_intern(r->ctx, sym, exponent,
@@ -348,7 +407,8 @@ static FacRef read_factor(Reader* r, const char* token, size_t length,
 	for (u8 k = 0; k < nbr_der; ++k)
 		fac = factor_derive(r->ctx, fac, der[k]);
 
-	return fac;
+	return read_partials(r, fac, &symbol, token + indices_end,
+						 length - indices_end);
 }
 
 static ExprRef build_expr_from_rational(Context* ctx, Rational coef) {

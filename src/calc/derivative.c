@@ -5,6 +5,7 @@
 #include <ccae/core/arena.h>
 #include <ccae/core/error.h>
 #include <ccae/core/rational.h>
+#include <ccae/core/strpool.h>
 #include <ccae/core/vec.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/expr.h>
@@ -182,6 +183,102 @@ ExprRef deriv_expr(Context* ctx, ExprRef expr_ref, Index derivative_index) {
 
 			if (!derive_factor(&terms[nbr_term], ctx, term_to_derive,
 							   factor_pos, derivative_index)) {
+				arena_restore(ctx->scratch, mark);
+				return null_ref;
+			}
+
+			++nbr_term;
+		}
+	}
+
+	ExprRef result = expr_intern(ctx, terms, nbr_term);
+
+	arena_restore(ctx->scratch, mark);
+
+	return result;
+}
+
+// Writes into `out` the term with its factor at `factor_pos` differentiated.
+// Returns false on a refused factor or monomial.
+static bool partial_factor(Term* out, Context* ctx, Term term_to_derive,
+						   u64 factor_pos, bool is_var, u8 arg) {
+	Monomial mono = vec_at(ctx->monomials, term_to_derive.mono.val);
+
+	FacRef facs[CCAE_MAX_FACTORS + 1];
+	size_t nbr_fac = 0;
+	Rational coef = term_to_derive.coef;
+	FacRef base = {0};
+
+	if (!split_off_factor(facs, &nbr_fac, &coef, &base, ctx, &mono, factor_pos))
+		return false;
+
+	if (!is_var) {
+		facs[nbr_fac] = factor_partial(ctx, base, arg);
+		if (facs[nbr_fac++].val == 0)
+			return false;
+	}
+
+	out->coef = coef;
+	out->mono = mono_intern(ctx, facs, nbr_fac);
+
+	return out->mono.val != 0;
+}
+
+ExprRef partial_expr(Context* ctx, ExprRef expr_ref, SymRef var) {
+	ExprRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (expr_ref.val == 0 || expr_ref.val >= ctx->exprs.length)
+		die("CCAE (partial_expr): expression handle out of range.");
+
+	if (var.val == 0 || var.val >= ctx->symbols.length)
+		die("CCAE (partial_expr): symbol handle out of range.");
+
+	if (vec_at(ctx->symbols, var.val).kind != SYM_HOMOG) {
+		err_set(&ctx->err, CCAE_INVALID_ARG,
+				"partial: '%s' is not a homogeneous variable.",
+				sp_get(ctx->sp, vec_at(ctx->symbols, var.val).name));
+		return null_ref;
+	}
+
+	Expr expr = vec_at(ctx->exprs, expr_ref.val);
+
+	size_t nbr_term_max = 0;
+	for (size_t t = 0; t < expr.nbr_term; ++t)
+		nbr_term_max += vec_at(ctx->monomials, expr.terms[t].mono.val).nbr_fac;
+
+	if (nbr_term_max == 0)
+		return expr_intern(ctx, NULL, 0);
+
+	ArenaMark mark = arena_save(ctx->scratch);
+
+	Term* terms = arena_alloc_array(ctx->scratch, Term, nbr_term_max);
+	if (!terms)
+		die("CCAE (partial_expr): out of memory.");
+
+	size_t nbr_term = 0;
+
+	for (size_t t = 0; t < expr.nbr_term; ++t) {
+		Term term_to_derive = expr.terms[t];
+		Monomial mono = vec_at(ctx->monomials, term_to_derive.mono.val);
+
+		for (u64 factor_pos = 0; factor_pos < mono.nbr_fac; ++factor_pos) {
+			Factor fac = vec_at(ctx->factors, mono.fac[factor_pos].val);
+			const Symbol* symbol = &vec_at(ctx->symbols, fac.head.val);
+
+			bool is_var = fac.head.val == var.val;
+
+			u8 arg = 0;
+			while (arg < symbol->nbr_arg && symbol->args[arg].val != var.val)
+				++arg;
+
+			if (!is_var && arg == symbol->nbr_arg)
+				continue;
+
+			if (!partial_factor(&terms[nbr_term], ctx, term_to_derive,
+								factor_pos, is_var, arg)) {
 				arena_restore(ctx->scratch, mark);
 				return null_ref;
 			}

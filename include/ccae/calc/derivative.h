@@ -14,4 +14,12 @@
 [[nodiscard]] ExprRef deriv_expr(Context* ctx, ExprRef expr_ref,
 								 Index derivative_index);
 
+/* Returns the handle of `∂_var expr_ref`, for the homogeneous variable `var`.
+ * Sets `ctx->err` and returns the null handle when `var` is not homogeneous,
+ * on a refused factor or monomial, or after an earlier error.
+ *
+ * Example:
+ *		`ExprRef dH = partial_expr(ctx, H, p);` */
+[[nodiscard]] ExprRef partial_expr(Context* ctx, ExprRef expr_ref, SymRef var);
+
 #endif

@@ -17,6 +17,7 @@ static size_t test_derivative_leibniz(void);
 static size_t test_derivative_multinomial(void);
 static size_t test_derivative_refused(void);
 static size_t test_derivative_chain_rule(void);
+static size_t test_derivative_homogeneous(void);
 
 size_t test_derivative(void) {
 	size_t fails = 0;
@@ -26,6 +27,7 @@ size_t test_derivative(void) {
 	fails += test_derivative_multinomial();
 	fails += test_derivative_refused();
 	fails += test_derivative_chain_rule();
+	fails += test_derivative_homogeneous();
 
 	return fails;
 }
@@ -208,6 +210,56 @@ static size_t test_derivative_chain_rule(void) {
 	ExprRef ab = derive(ctx, derive(ctx, f_expr, 'b'), 'a');
 	ExprRef ba = derive(ctx, derive(ctx, f_expr, 'a'), 'b');
 	CHECK(ab.val != 0 && ab.val == ba.val);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool partial_to(Context* ctx, const char* text, SymRef var,
+					   const char* expected) {
+	ExprRef result = partial_expr(ctx, read_sexpr(ctx, text), var);
+
+	return result.val != 0 && result.val == read_sexpr(ctx, expected).val;
+}
+
+static size_t test_derivative_homogeneous(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	bundle_set_derivative(ctx, spatial);
+
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	SymRef c = symbol_declare_homog(ctx, "c", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", F_POSITIVE | F_NONZERO);
+	SymRef g = symbol_declare_undet_fn(ctx, "g", 2, (SymRef[]){c, p}, 0);
+	SymRef k = symbol_declare_undet_fn(ctx, "k", 2, (SymRef[]){x, p}, 0);
+	CHECK(g.val != 0 && k.val != 0);
+
+	CHECK(partial_to(ctx, "(^ p 1/2)", p, "(* 1/2 (^ p -1/2))"));
+	CHECK(partial_to(ctx, "p", p, "1"));
+
+	CHECK(partial_to(ctx, "g", c, "g;c"));
+	CHECK(partial_to(ctx, "(* (^ c 2) g)", c, "(+ (* 2 c g) (* (^ c 2) g;c))"));
+
+	CHECK(partial_to(ctx, "x", p, "0"));
+	CHECK(partial_to(ctx, "k", c, "0"));
+
+	// ∂_p and ∂_a commute.
+	ExprRef kx = read_sexpr(ctx, "(* k x)");
+	Index a = {IDX_FREE, 'a'};
+	ExprRef pa = partial_expr(ctx, deriv_expr(ctx, kx, a), p);
+	ExprRef ap = deriv_expr(ctx, partial_expr(ctx, kx, p), a);
+	CHECK(pa.val != 0 && pa.val == ap.val);
+
+	CHECK(partial_expr(ctx, kx, x).val == 0);
+	ctx_clear_err(ctx);
 
 	CHECK(ctx_ok(ctx));
 

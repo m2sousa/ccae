@@ -53,8 +53,8 @@ static bool split_off_factor(FacRef* out, size_t* nbr_fac, Rational* coef,
 
 // Writes into `out` the term with its factor at `factor_pos` differentiated.
 // Returns false on a refused factor or monomial.
-static bool derive_factor(Term* out, Context* ctx, Term term_to_derive,
-						  u64 factor_pos, Index derivative_index) {
+static bool build_derivative_term(Term* out, Context* ctx, Term term_to_derive,
+								  u64 factor_pos, Index derivative_index) {
 	Monomial mono = vec_at(ctx->monomials, term_to_derive.mono.val);
 
 	// Note the +2 there, it is needed for the chain rule of a monomial with
@@ -78,8 +78,9 @@ static bool derive_factor(Term* out, Context* ctx, Term term_to_derive,
 	return out->mono.val != 0;
 }
 
-static bool derive_argument(Term* out, Context* ctx, Term term_to_derive,
-							u64 factor_pos, u8 arg, Index derivative_index) {
+static bool build_chain_rule_term(Term* out, Context* ctx, Term term_to_derive,
+								  u64 factor_pos, u8 arg,
+								  Index derivative_index) {
 	Monomial mono = vec_at(ctx->monomials, term_to_derive.mono.val);
 
 	FacRef facs[CCAE_MAX_FACTORS + 2];
@@ -165,8 +166,9 @@ ExprRef deriv_expr(Context* ctx, ExprRef expr_ref, Index derivative_index) {
 						F_CONST_IN_SPACE)
 						continue;
 
-					if (!derive_argument(&terms[nbr_term], ctx, term_to_derive,
-										 factor_pos, arg, derivative_index)) {
+					if (!build_chain_rule_term(&terms[nbr_term], ctx,
+											   term_to_derive, factor_pos, arg,
+											   derivative_index)) {
 						arena_restore(ctx->scratch, mark);
 						return null_ref;
 					}
@@ -181,8 +183,8 @@ ExprRef deriv_expr(Context* ctx, ExprRef expr_ref, Index derivative_index) {
 			if (symbol->flags & F_CONST_IN_SPACE)
 				continue;
 
-			if (!derive_factor(&terms[nbr_term], ctx, term_to_derive,
-							   factor_pos, derivative_index)) {
+			if (!build_derivative_term(&terms[nbr_term], ctx, term_to_derive,
+									   factor_pos, derivative_index)) {
 				arena_restore(ctx->scratch, mark);
 				return null_ref;
 			}
@@ -200,8 +202,8 @@ ExprRef deriv_expr(Context* ctx, ExprRef expr_ref, Index derivative_index) {
 
 // Writes into `out` the term with its factor at `factor_pos` differentiated.
 // Returns false on a refused factor or monomial.
-static bool partial_factor(Term* out, Context* ctx, Term term_to_derive,
-						   u64 factor_pos, bool is_var, u8 arg) {
+static bool build_partial_term(Term* out, Context* ctx, Term term_to_derive,
+							   u64 factor_pos, bool is_var, u8 arg) {
 	Monomial mono = vec_at(ctx->monomials, term_to_derive.mono.val);
 
 	FacRef facs[CCAE_MAX_FACTORS + 1];
@@ -277,8 +279,8 @@ ExprRef partial_expr(Context* ctx, ExprRef expr_ref, SymRef var) {
 			if (!is_var && arg == symbol->nbr_arg)
 				continue;
 
-			if (!partial_factor(&terms[nbr_term], ctx, term_to_derive,
-								factor_pos, is_var, arg)) {
+			if (!build_partial_term(&terms[nbr_term], ctx, term_to_derive,
+									factor_pos, is_var, arg)) {
 				arena_restore(ctx->scratch, mark);
 				return null_ref;
 			}

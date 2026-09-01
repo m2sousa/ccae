@@ -62,6 +62,8 @@ static const char* kind_name(SymKind kind) {
 		return "testfn";
 	case SYM_CONST:
 		return "const";
+	case SYM_UNDET_FN:
+		return "function";
 	}
 
 	return "?";

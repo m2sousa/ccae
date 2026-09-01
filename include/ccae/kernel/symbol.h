@@ -13,6 +13,7 @@ typedef enum : u8 {
 	SYM_HOMOG,
 	SYM_TESTFN,
 	SYM_CONST,
+	SYM_UNDET_FN,
 } SymKind;
 
 typedef enum : u16 {
@@ -39,6 +40,8 @@ typedef struct {
 	Generators generators;
 	const Orbit* orbit;
 	SymRef inverse;
+	u8 nbr_arg;
+	SymRef args[CCAE_MAX_ARGS];
 } Symbol;
 
 typedef Vec(Symbol) SymbolVec;
@@ -71,6 +74,18 @@ typedef Vec(Symbol) SymbolVec;
  *		`SymRef kappa = symbol_declare_const(ctx, "kappa", F_POSITIVE);` */
 [[nodiscard]] SymRef symbol_declare_const(Context* ctx, const char* name,
 										  u16 flags);
+
+/* Declares the undetermined function `name` with `nbr_arg` arguments `args`.
+ * Fails like `symbol_declare_tensor`, and on no argument, more than
+ * `CCAE_MAX_ARGS`, an argument with slots or a repeated one; dies on a bad
+ * argument handle.
+ *
+ * Example:
+ *		`SymRef g = symbol_declare_undet_fn(ctx, "g", 2, (SymRef[]){c, p}, 0);`
+ * */
+[[nodiscard]] SymRef symbol_declare_undet_fn(Context* ctx, const char* name,
+											 u8 nbr_arg, const SymRef* args,
+											 u16 flags);
 
 /* Sets the LaTeX rendering of `sym`. Does nothing after an earlier error;
  * dies on a bad handle.

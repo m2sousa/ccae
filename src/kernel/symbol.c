@@ -215,6 +215,54 @@ SymRef symbol_declare_const(Context* ctx, const char* name, u16 flags) {
 	return declare_symbol(ctx, name, SYM_CONST, "", "", flags);
 }
 
+static bool check_arguments(Context* ctx, const char* name, u8 nbr_arg,
+							const SymRef* args) {
+	if (nbr_arg == 0)
+		return reject_flag(ctx, name, "no argument");
+
+	if (nbr_arg > CCAE_MAX_ARGS)
+		return reject_flag(ctx, name, "too many arguments");
+
+	for (u8 k = 0; k < nbr_arg; ++k) {
+		if (args[k].val == 0 || args[k].val >= ctx->symbols.length)
+			die("CCAE (symbol_declare_undet_fn): argument handle out of "
+				"range.");
+
+		if (vec_at(ctx->symbols, args[k].val).nbr_slot > 0)
+			return reject_flag(ctx, name, "an argument with slots");
+
+		for (u8 l = 0; l < k; ++l) {
+			if (args[l].val == args[k].val)
+				return reject_flag(ctx, name, "a repeated argument");
+		}
+	}
+
+	return true;
+}
+
+SymRef symbol_declare_undet_fn(Context* ctx, const char* name, u8 nbr_arg,
+							   const SymRef* args, u16 flags) {
+	SymRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (!check_arguments(ctx, name, nbr_arg, args))
+		return null_ref;
+
+	SymRef result = declare_symbol(ctx, name, SYM_UNDET_FN, "", "", flags);
+	if (result.val == 0)
+		return null_ref;
+
+	Symbol* symbol = &vec_at(ctx->symbols, result.val);
+	symbol->nbr_arg = nbr_arg;
+
+	for (u8 k = 0; k < nbr_arg; ++k)
+		symbol->args[k] = args[k];
+
+	return result;
+}
+
 void symbol_set_latex(Context* ctx, SymRef sym, const char* latex) {
 	if (!ctx_ok(ctx))
 		return;

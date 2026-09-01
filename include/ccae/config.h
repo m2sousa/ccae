@@ -19,6 +19,9 @@ constexpr size_t CCAE_MAX_ORBIT = 720;
 static_assert(CCAE_MAX_SLOT == 6 && CCAE_MAX_ORBIT == 720,
 			  "CCAE_MAX_ORBIT must be CCAE_MAX_SLOT!.");
 
+// The most arguments of an undetermined function.
+constexpr size_t CCAE_MAX_ARGS = 4;
+
 // The most derivative indices on one factor.
 constexpr size_t CCAE_MAX_DERIVATIVES = 8;
 

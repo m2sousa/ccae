@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <ccae/config.h>
 #include <ccae/core/error.h>
 #include <ccae/core/strpool.h>
 #include <ccae/kernel/bundle.h>
@@ -21,6 +22,7 @@ static size_t test_symbol_const(void);
 static size_t test_symbol_too_many_slots(void);
 static size_t test_symbol_symmetry(void);
 static size_t test_symbol_inverse(void);
+static size_t test_symbol_undet_fn(void);
 
 size_t test_symbol(void) {
 	size_t fails = 0;
@@ -34,6 +36,7 @@ size_t test_symbol(void) {
 	fails += test_symbol_too_many_slots();
 	fails += test_symbol_symmetry();
 	fails += test_symbol_inverse();
+	fails += test_symbol_undet_fn();
 
 	return fails;
 }
@@ -336,6 +339,55 @@ static size_t test_symbol_inverse(void) {
 
 	// One inverse each.
 	CHECK(inverse_refused(ctx, E, cotriad));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static bool undet_fn_refused(Context* ctx, const char* name, u8 nbr_arg,
+							 const SymRef* args) {
+	SymRef fn = symbol_declare_undet_fn(ctx, name, nbr_arg, args, 0);
+	bool refused = fn.val == 0 && !ctx_ok(ctx);
+
+	ctx_clear_err(ctx);
+
+	return refused;
+}
+
+static size_t test_symbol_undet_fn(void) {
+	size_t fails = 0;
+
+	Context* ctx = create_ctx_with_bundles();
+	if (!ctx)
+		return 1;
+
+	SymRef c = symbol_declare_homog(ctx, "c", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", 0);
+	SymRef E = symbol_declare_tensor(ctx, "E", SYM_FIELD, "^a_i", "", 0);
+	CHECK(ctx_ok(ctx));
+
+	// g(c, p): the arguments are kept in order.
+	SymRef g = symbol_declare_undet_fn(ctx, "g", 2, (SymRef[]){c, p}, 0);
+	CHECK(g.val != 0);
+
+	Symbol symbol = vec_at(ctx->symbols, g.val);
+	CHECK(symbol.kind == SYM_UNDET_FN && symbol.nbr_slot == 0);
+	CHECK(symbol.nbr_arg == 2);
+	CHECK(symbol.args[0].val == c.val && symbol.args[1].val == p.val);
+
+	// Refused: no argument, too many, an argument with slots, a repeated one.
+	SymRef many[CCAE_MAX_ARGS + 1];
+	for (size_t k = 0; k <= CCAE_MAX_ARGS; ++k)
+		many[k] = c;
+
+	CHECK(undet_fn_refused(ctx, "f0", 0, NULL));
+	CHECK(undet_fn_refused(ctx, "f1", CCAE_MAX_ARGS + 1, many));
+	CHECK(undet_fn_refused(ctx, "f2", 1, (SymRef[]){E}));
+	CHECK(undet_fn_refused(ctx, "f3", 2, (SymRef[]){c, c}));
+
+	// The name is checked as for any symbol.
+	CHECK(undet_fn_refused(ctx, "g", 1, (SymRef[]){c}));
 
 	ctx_destroy(ctx);
 

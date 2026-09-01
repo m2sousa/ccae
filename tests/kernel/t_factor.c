@@ -425,6 +425,11 @@ static size_t test_factor_partial(void) {
 		vec_at(ctx->monomials, mono_intern(ctx, (FacRef[]){g_one, g_c}, 2).val)
 			.nbr_fac == 2);
 
+	BundleRef spatial = bundle_declare(ctx, "spatial", "abcd", 3);
+	bundle_set_derivative(ctx, spatial);
+	CHECK(factor_derive(ctx, g_one, (Index){IDX_FREE, 'a'}).val == 0);
+	ctx_clear_err(ctx);
+
 	// Refused: not a function, an unknown argument, a power.
 	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 	CHECK(factor_partial(ctx, x_one, 0).val == 0);

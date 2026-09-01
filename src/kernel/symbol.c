@@ -228,8 +228,15 @@ static bool check_arguments(Context* ctx, const char* name, u8 nbr_arg,
 			die("CCAE (symbol_declare_undet_fn): argument handle out of "
 				"range.");
 
-		if (vec_at(ctx->symbols, args[k].val).nbr_slot > 0)
+		const Symbol* arg = &vec_at(ctx->symbols, args[k].val);
+
+		if (arg->nbr_slot > 0)
 			return reject_flag(ctx, name, "an argument with slots");
+
+		// TODO: Nesting derivations must be implemented at some point for
+		// very generic computations.
+		if (arg->kind == SYM_UNDET_FN)
+			return reject_flag(ctx, name, "an argument that is a function");
 
 		for (u8 l = 0; l < k; ++l) {
 			if (args[l].val == args[k].val)

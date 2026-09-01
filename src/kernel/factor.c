@@ -142,6 +142,9 @@ static bool check_derivative_index(Context* ctx, const Symbol* symbol,
 	if (!rat_is_one(fac->exponent))
 		return reject_factor(ctx, symbol, "derivative of a power");
 
+	if (symbol->kind == SYM_UNDET_FN)
+		return reject_factor(ctx, symbol, "derivative of a function");
+
 	if (symbol->flags & F_CONST_IN_SPACE)
 		return reject_factor(ctx, symbol, "derivative of a constant in space");
 

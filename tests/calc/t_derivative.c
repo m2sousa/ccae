@@ -16,6 +16,7 @@ static size_t test_derivative_divergence(void);
 static size_t test_derivative_leibniz(void);
 static size_t test_derivative_multinomial(void);
 static size_t test_derivative_refused(void);
+static size_t test_derivative_chain_rule(void);
 
 size_t test_derivative(void) {
 	size_t fails = 0;
@@ -24,6 +25,7 @@ size_t test_derivative(void) {
 	fails += test_derivative_leibniz();
 	fails += test_derivative_multinomial();
 	fails += test_derivative_refused();
+	fails += test_derivative_chain_rule();
 
 	return fails;
 }
@@ -36,18 +38,22 @@ static Context* create_ctx_with_fields(void) {
 	BundleRef spatial = bundle_declare(ctx, "spatial", "abcdefgh", 3);
 	bundle_set_derivative(ctx, spatial);
 
-	const char* scalars[] = {"x", "y", "z", "w", "X"};
-	for (size_t i = 0; i < 5; ++i) {
-		SymRef scalar =
-			symbol_declare_tensor(ctx, scalars[i], SYM_FIELD, "", "", 0);
-		if (scalar.val == 0)
-			break;
-	}
+	const char* scalar_names[] = {"x", "y", "z", "w", "X"};
+	SymRef scalars[5] = {0};
+	for (size_t i = 0; i < 5; ++i)
+		scalars[i] =
+			symbol_declare_tensor(ctx, scalar_names[i], SYM_FIELD, "", "", 0);
 
 	SymRef T = symbol_declare_tensor(ctx, "T", SYM_FIELD, "^a^b", "", 0);
 	SymRef p = symbol_declare_homog(ctx, "p", 0);
 
-	if (T.val == 0 || p.val == 0 || !ctx_ok(ctx)) {
+	SymRef x = scalars[0];
+	SymRef y = scalars[1];
+	SymRef f = symbol_declare_undet_fn(ctx, "f", 1, (SymRef[]){x}, 0);
+	SymRef h = symbol_declare_undet_fn(ctx, "h", 2, (SymRef[]){x, y}, 0);
+	SymRef g = symbol_declare_undet_fn(ctx, "g", 1, (SymRef[]){p}, 0);
+
+	if (T.val == 0 || f.val == 0 || h.val == 0 || g.val == 0 || !ctx_ok(ctx)) {
 		ctx_destroy(ctx);
 		return NULL;
 	}
@@ -171,6 +177,37 @@ static size_t test_derivative_refused(void) {
 	CHECK(x_b.val != 0);
 	CHECK(derive(ctx, x_b, 'b').val == 0);
 	ctx_clear_err(ctx);
+
+	CHECK(ctx_ok(ctx));
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_derivative_chain_rule(void) {
+	size_t fails = 0;
+
+	Context* ctx = create_ctx_with_fields();
+	if (!ctx)
+		return 1;
+
+	CHECK(derives_to(ctx, "f", 'a', "(* f;x x,a)"));
+	CHECK(derives_to(ctx, "h", 'a', "(+ (* h;x x,a) (* h;y y,a))"));
+	CHECK(derives_to(ctx, "f;x", 'a', "(* f;x;x x,a)"));
+
+	CHECK(derives_to(ctx, "g", 'a', "0"));
+
+	// Powers, and a product with a tensor.
+	CHECK(derives_to(ctx, "(^ f 2)", 'a', "(* 2 f f;x x,a)"));
+	CHECK(derives_to(ctx, "(* f T^b^c)", 'a',
+					 "(+ (* f;x x,a T^b^c) (* f T^b^c,a))"));
+
+	// The second derivatives commute.
+	ExprRef f_expr = read_sexpr(ctx, "f");
+	ExprRef ab = derive(ctx, derive(ctx, f_expr, 'b'), 'a');
+	ExprRef ba = derive(ctx, derive(ctx, f_expr, 'a'), 'b');
+	CHECK(ab.val != 0 && ab.val == ba.val);
 
 	CHECK(ctx_ok(ctx));
 

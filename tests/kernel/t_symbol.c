@@ -386,6 +386,10 @@ static size_t test_symbol_undet_fn(void) {
 	CHECK(undet_fn_refused(ctx, "f2", 1, (SymRef[]){E}));
 	CHECK(undet_fn_refused(ctx, "f3", 2, (SymRef[]){c, c}));
 
+	// TODO: The argument there is an undetermined function, this test will fail
+	// once nesting derivatives are implemented.
+	CHECK(undet_fn_refused(ctx, "f4", 1, (SymRef[]){g}));
+
 	// The name is checked as for any symbol.
 	CHECK(undet_fn_refused(ctx, "g", 1, (SymRef[]){c}));
 

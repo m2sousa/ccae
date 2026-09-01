@@ -13,6 +13,7 @@ typedef struct {
 	Index indices[CCAE_MAX_SLOT];
 	u8 nbr_der;
 	Index der[CCAE_MAX_DERIVATIVES];
+	u8 partial_order[CCAE_MAX_ARGS];
 } Factor;
 
 typedef Vec(Factor) FactorVec;
@@ -38,6 +39,15 @@ typedef Vec(Factor) FactorVec;
  * Example:
  *		`FacRef dX = factor_derive(ctx, X_c, (Index){IDX_FREE, 'a'});` */
 [[nodiscard]] FacRef factor_derive(Context* ctx, FacRef fac, Index a);
+
+/* Returns the handle of `fac` differentiated in its argument index `arg`.
+ * Sets `ctx->err` and returns the null handle when `fac` is not an
+ * undetermined function, when `arg` is not one of its arguments, on a power,
+ * on derivative indices.
+ *
+ * Example:
+ *		`FacRef g_c = factor_partial(ctx, g_one, 0);` */
+[[nodiscard]] FacRef factor_partial(Context* ctx, FacRef fac, u8 arg);
 
 /* Returns the handle of `fac` with new indices `indices` (slots then
  * derivatives, in order). Head and exponent are kept, the derivative indices

@@ -32,6 +32,15 @@ static void sort_factors(const Context* ctx, Monomial* mono) {
 	}
 }
 
+static bool check_no_deriv(const Factor* fac) {
+	for (u8 k = 0; k < CCAE_MAX_ARGS; ++k) {
+		if (fac->partial_order[k] > 0)
+			return false;
+	}
+
+	return fac->nbr_der == 0;
+}
+
 // Merge scalar factor (ex: x*x => x^2) by adding their exponent,
 // do nothing otherwise. Might fail if a factor is rejected on interning.
 static bool check_and_merge_exponents(Context* ctx, Monomial* mono) {
@@ -42,7 +51,9 @@ static bool check_and_merge_exponents(Context* ctx, Monomial* mono) {
 		Factor first = vec_at(ctx->factors, mono->fac[i].val);
 		u64 nbr_slot = vec_at(ctx->symbols, first.head.val).nbr_slot;
 
-		if (nbr_slot > 0 || first.nbr_der > 0) {
+		// Only plain scalars merge: `factor_intern` would lose derivative
+		// indices and partial orders.
+		if (nbr_slot > 0 || !check_no_deriv(&first)) {
 			mono->fac[nbr_kept++] = mono->fac[i++];
 			continue;
 		}
@@ -52,7 +63,7 @@ static bool check_and_merge_exponents(Context* ctx, Monomial* mono) {
 		for (++i; i < mono->nbr_fac; ++i) {
 			Factor next = vec_at(ctx->factors, mono->fac[i].val);
 
-			if (next.head.val != first.head.val || next.nbr_der > 0)
+			if (next.head.val != first.head.val || !check_no_deriv(&next))
 				break;
 
 			exponent = rat_add(exponent, next.exponent);

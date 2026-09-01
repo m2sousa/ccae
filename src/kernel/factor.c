@@ -1,4 +1,6 @@
+#include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <ccae/core/error.h>
 #include <ccae/core/rational.h>
@@ -80,7 +82,9 @@ static bool factors_equal(const Factor* a, const Factor* b, u8 nbr_slot) {
 		   rat_cmp(a->exponent, b->exponent) == 0 &&
 		   indices_equal(a->indices, b->indices, nbr_slot) &&
 		   a->nbr_der == b->nbr_der &&
-		   indices_equal(a->der, b->der, a->nbr_der);
+		   indices_equal(a->der, b->der, a->nbr_der) &&
+		   memcmp(a->partial_order, b->partial_order,
+				  sizeof(a->partial_order)) == 0;
 }
 
 // Returns the handle of `fac`, storing it the first time. Every factor is
@@ -177,6 +181,46 @@ FacRef factor_derive(Context* ctx, FacRef fac_ref, Index a) {
 	return intern_factor(ctx, &fac, symbol->nbr_slot);
 }
 
+static bool check_partial(Context* ctx, const Symbol* symbol, const Factor* fac,
+						  u8 arg) {
+	if (symbol->kind != SYM_UNDET_FN)
+		return reject_factor(ctx, symbol, "partial of a non-function");
+
+	if (arg >= symbol->nbr_arg)
+		return reject_factor(ctx, symbol, "partial in an unknown argument");
+
+	if (!rat_is_one(fac->exponent))
+		return reject_factor(ctx, symbol, "partial of a power");
+
+	if (fac->nbr_der > 0)
+		return reject_factor(ctx, symbol, "partial of a derivative");
+
+	if (fac->partial_order[arg] == UINT8_MAX)
+		return reject_factor(ctx, symbol, "partial order too high");
+
+	return true;
+}
+
+FacRef factor_partial(Context* ctx, FacRef fac_ref, u8 arg) {
+	FacRef null_ref = {.val = 0};
+
+	if (!ctx_ok(ctx))
+		return null_ref;
+
+	if (fac_ref.val == 0 || fac_ref.val >= ctx->factors.length)
+		die("CCAE (factor_partial): factor handle out of range.");
+
+	Factor fac = vec_at(ctx->factors, fac_ref.val);
+	const Symbol* symbol = &vec_at(ctx->symbols, fac.head.val);
+
+	if (!check_partial(ctx, symbol, &fac, arg))
+		return null_ref;
+
+	fac.partial_order[arg] += 1;
+
+	return intern_factor(ctx, &fac, symbol->nbr_slot);
+}
+
 FacRef factor_replace_indices(Context* ctx, FacRef fac_ref,
 							  const Index* indices) {
 	FacRef null_ref = {.val = 0};
@@ -234,6 +278,11 @@ int factor_cmp(const Context* ctx, FacRef a, FacRef b) {
 		int der_order = index_cmp(fac_a.der[k], fac_b.der[k]);
 		if (der_order != 0)
 			return der_order;
+	}
+
+	for (u8 k = 0; k < CCAE_MAX_ARGS; ++k) {
+		if (fac_a.partial_order[k] != fac_b.partial_order[k])
+			return fac_a.partial_order[k] < fac_b.partial_order[k] ? -1 : 1;
 	}
 
 	int exponent_order = rat_cmp(fac_a.exponent, fac_b.exponent);

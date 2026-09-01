@@ -5,6 +5,7 @@
 #include <ccae/kernel/bundle.h>
 #include <ccae/kernel/context.h>
 #include <ccae/kernel/factor.h>
+#include <ccae/kernel/monomial.h>
 #include <ccae/kernel/symbol.h>
 
 #include "t_kernel_utils.h"
@@ -19,6 +20,7 @@ static size_t test_factor_derive(void);
 static size_t test_factor_cmp(void);
 static size_t test_factor_replace_indices(void);
 static size_t test_factor_build_indices(void);
+static size_t test_factor_partial(void);
 
 size_t test_factor(void) {
 	size_t fails = 0;
@@ -31,6 +33,7 @@ size_t test_factor(void) {
 	fails += test_factor_cmp();
 	fails += test_factor_replace_indices();
 	fails += test_factor_build_indices();
+	fails += test_factor_partial();
 
 	return fails;
 }
@@ -381,6 +384,57 @@ static size_t test_factor_build_indices(void) {
 	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
 	CHECK(factor_build_indices(indices, ctx, x_one) == 0);
 	CHECK(factor_count_indices(ctx, x_one) == 0);
+
+	ctx_destroy(ctx);
+
+	return fails;
+}
+
+static size_t test_factor_partial(void) {
+	size_t fails = 0;
+
+	Context* ctx = ctx_create();
+	if (!ctx)
+		return 1;
+
+	SymRef c = symbol_declare_homog(ctx, "c", 0);
+	SymRef p = symbol_declare_homog(ctx, "p", 0);
+	SymRef x = symbol_declare_tensor(ctx, "x", SYM_FIELD, "", "", 0);
+	SymRef g = symbol_declare_undet_fn(ctx, "g", 2, (SymRef[]){c, p}, 0);
+	CHECK(ctx_ok(ctx));
+
+	FacRef g_one = factor_intern(ctx, g, rat_from_int(1), NULL);
+	FacRef g_c = factor_partial(ctx, g_one, 0);
+	CHECK(g_c.val != 0 && g_c.val != g_one.val);
+
+	// Partials commute ∂_p ∂_c g and ∂_c ∂_p g are one factor.
+	FacRef g_cp = factor_partial(ctx, g_c, 1);
+	FacRef g_pc = factor_partial(ctx, factor_partial(ctx, g_one, 1), 0);
+	CHECK(g_cp.val != 0 && g_cp.val == g_pc.val);
+	CHECK(vec_at(ctx->factors, g_cp.val).partial_order[0] == 1);
+	CHECK(vec_at(ctx->factors, g_cp.val).partial_order[1] == 1);
+
+	FacRef g_two = factor_intern(ctx, g, rat_from_int(2), NULL);
+	CHECK(factor_cmp(ctx, g_one, g_two) == -1);
+	CHECK(factor_cmp(ctx, g_two, g_c) == -1);
+
+	CHECK(vec_at(ctx->monomials,
+				 mono_intern(ctx, (FacRef[]){g_one, g_one}, 2).val)
+			  .nbr_fac == 1);
+	CHECK(
+		vec_at(ctx->monomials, mono_intern(ctx, (FacRef[]){g_one, g_c}, 2).val)
+			.nbr_fac == 2);
+
+	// Refused: not a function, an unknown argument, a power.
+	FacRef x_one = factor_intern(ctx, x, rat_from_int(1), NULL);
+	CHECK(factor_partial(ctx, x_one, 0).val == 0);
+	ctx_clear_err(ctx);
+
+	CHECK(factor_partial(ctx, g_one, 2).val == 0);
+	ctx_clear_err(ctx);
+
+	CHECK(factor_partial(ctx, g_two, 0).val == 0);
+	ctx_clear_err(ctx);
 
 	ctx_destroy(ctx);
 
